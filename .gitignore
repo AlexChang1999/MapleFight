@@ -1,0 +1,14 @@
+# 編譯輸出（不上傳 .class 檔）
+out/
+
+# Windows 暫存檔
+Thumbs.db
+Desktop.ini
+
+# IDE 設定
+.idea/
+*.iml
+.vscode/
+
+# 暫存列表
+sources.txt
