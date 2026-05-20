@@ -1,92 +1,127 @@
 # MapleFight 開發存檔點
-> 最後更新：2026-05-19｜GitHub: https://github.com/AlexChang1999/MapleFight.git
+> 最後更新：2026-05-20｜GitHub: https://github.com/AlexChang1999/MapleFight.git
 
 ---
 
-## 1. ✅ 已完成（Phase 1–6）
+## 1. ✅ 已完成
 
-- **Phase 1**：視窗 + 60FPS 遊戲迴圈（`GameWindow`, `GamePanel`, `Main`）
-- **Phase 2**：火柴人玩家 + 鍵盤移動（← →）、跳躍（Space）、攻擊（Z）（`Player`, `InputHandler`）
-- **Phase 3**：地圖平台 + 從上方落下的碰撞偵測（`GameMap`, `Platform`）
-- **Phase 4**：平滑鏡頭 Lerp 卷軸，玩家維持畫面左 1/3（`Camera`）
-- **Phase 5**：怪物 AI（追擊、近身攻擊、HP 條、受傷閃紅、死亡擴散動畫）（`Monster`）
-- **Phase 6**：底部 HUD（HP/MP/EXP 條）+ S/K/E 鍵切換狀態/技能/裝備面板（`StatusPanel`, `SkillPanel`, `EquipPanel`）
+| Phase | 內容 | 關鍵檔案 |
+|-------|------|---------|
+| Phase 1–6 | 視窗、角色、地圖、鏡頭、怪物AI、HUD | 各核心檔案 |
+| Phase 7–12 | 村莊、NPC、傳送門、動畫、裝備系統 | map/, entity/ |
+| 極地冰原 | 梯子、冰怪、極光雪粒子、職業解鎖 | ArcticMap.java, Ladder.java |
+| 動物怪物 | 劍士職業、雙段連擊 | Warrior.java, SkillThrust.java |
+| 按鍵設定 | 拖曳鍵盤 UI、雙向映射 | KeyBindingPanel.java |
+| **Phase 1 (存檔系統)** | 標題畫面、取名、JSON存讀、F5存檔、金幣欄 | TitleScreen.java, SaveManager.java |
+| **Phase 0 (基礎修復)** | 等比縮放視窗、ESC暫停選單、新手三關地圖、按鍵設定存檔 | 見下方詳述 |
+
+### Phase 0 詳細（本次完成）
+
+| 項目 | 說明 |
+|------|------|
+| **等比縮放視窗** | 視窗可自由拖曳縮放，邏輯解析度 800×580 不變，黑邊補齊 letterbox |
+| **ESC 暫停選單** | 按 ESC 暫停，選單有：繼續遊戲 / 存檔 / 刪除存檔 / 回主畫面 / 退出遊戲 |
+| **新手森林三區** | NoviceMap1（史萊姆）、NoviceMap2（史萊姆+蝙蝠）、NoviceMap3（野豬+蝙蝠） |
+| **新手地圖串接** | 村莊左側傳送門 → 一區 → 二區 → 三區 → 冒險平原 |
+| **梯子** | 三張新手地圖各自含梯子（每圖 2~4 座） |
+| **按鍵設定存檔** | save/keybindings.json，存於 F5/ESC存檔 和關閉按鍵設定面板時 |
+| **地圖切換鏡頭** | Camera.snapTo() 切圖時瞬間定位，不 lerp 滑動 |
+| **TitleScreen縮放** | 標題畫面也支援等比縮放 |
 
 ---
 
-## 2. ⏳ 待辦 / 下次繼續（Phase 7–16）
+## 2. ⏳ 待辦（Phase 2–7）
 
-### 🆕 新增功能（Phase 7–12）
+### 建議執行順序：2 → 3 → 4 → 5 → 6 → 7
+
 | Phase | 任務 | 關鍵檔案 |
 |-------|------|---------|
-| 7 | 地圖系統：`MapManager`（切換邏輯）+ `VillageMap`（起始村莊） | `core/MapManager.java`, `map/VillageMap.java` |
-| 8 | NPC 系統：火柴人 NPC，有名牌、靜待動畫，村莊放 2~3 位 | `entity/NPC.java` |
-| 9 | 傳送門：地圖邊界放 `Portal`，碰到自動切換地圖 | `map/Portal.java` |
-| 10 | 人物動畫強化：靜待呼吸起伏、走路腰部擺動、攻擊三階段（蓄勢→揮擊→收勢） | 更新 `entity/Player.java` |
-| 11 | 裝備系統：`Equipment` 資料類 + `EquipSlot` 枚舉 + 新手預設裝備穿在身上 | `item/Equipment.java`, `item/EquipSlot.java`, 更新 `Player.java` |
-| 12 | `GamePanel` 整合：地圖切換、NPC、Portal 渲染 | 更新 `core/GamePanel.java` |
-
-### 原定功能（Phase 13–16）
-| Phase | 任務 |
-|-------|------|
-| 13 | 技能系統（Job 抽象類 + Warrior + 衝刺斬/鐵壁） |
-| 14 | 裝備面板完整實作（8 格可點擊） |
-| 15 | 升等 + 手動分配 STR/DEX/INT/LUK 視窗 |
-| 16 | 轉職系統（Lv10 → 戰士、Lv30 → 勇士，跳出轉職畫面） |
+| **Phase 2** | 道具欄 & 掉落系統 | ItemRarity, Item, Consumable, DropItem, Inventory, InventoryPanel（I鍵）|
+| **Phase 3** | NPC 商店系統 | ShopEntry, ShopPanel；NPC 靠近顯示「F互動」；村莊商人開店 |
+| **Phase 4** | 裝備外觀疊加在角色身上 | Player.draw() 依裝備槽疊圖形，稀有度決定顏色 |
+| **Phase 5** | 職業轉職系統重構 | Mage, Archer + 技能；JobSelectionPanel（Lv10彈出）；移除 Warrior 硬編碼 |
+| **Phase 6** | 地圖等級門檻 & EXP指數成長 | BaseMap.getMinLevel()/getMapName()；MapManager 阻擋低等級；EXP=100×1.4^lv |
+| **Phase 7** | 多地圖擴充（長期） | 森林/沙漠/火山/深海/天空/城堡/龍族/科幻/神話 |
 
 ---
 
 ## 3. 🐛 已知問題 / 注意事項
 
-- `SkillPanel` 和 `EquipPanel` 目前是**框架佔位**，Phase 13/14 才填入真實資料
-- 怪物碰撞偵測用 `prevFeet` 回推，**高速掉落時可能穿台**（Phase 3 簡化版，後續可改用 sweep test）
-- `GameMap` 目前是戰鬥地圖，**村莊地圖（VillageMap）Phase 7 才建立**，地圖切換邏輯尚未實作
-- 玩家 `Equipment[]` 欄位已預留（註解在 `Player.java`），Phase 11 解開並實作
-- 寵物欄位也已預留（`canHavePet`），功能未來再擴充
-- `compile_and_run.bat` 已移除中文，用 `dir /s /b *.java` 自動掃描全部 Java 檔
+- `SkillPanel` 和 `EquipPanel` 目前是**框架佔位**，Phase 5/4 才填入真實資料
+- 怪物死亡後**不會重生**（切換地圖不重置），Phase 2 規劃加入重生機制
+- `MapManager` 的怪物列表硬編碼在 `GamePanel`，Phase 6 規劃移入各地圖
+- 新手村右側傳送門目前直通**冒險平原**（高等地圖），Phase 6 加等級門檻阻擋
+- `SkillPanel` 顯示「戰士第一轉」但職業系統重構後會更新（Phase 5）
+- `save/slot1.json` 等已從 git 追蹤中排除（加入 .gitignore）
 
 ---
 
 ## 4. 📁 檔案清單
 
 ```
-D:\MapleGame\  （GitHub: AlexChang1999/MapleFight，branch: main）
-├── compile_and_run.bat          ← 雙擊編譯並執行
+H:\MapleGame\
+├── compile_and_run.bat          ← 雙擊編譯並執行（H 槽）
 ├── PROGRESS.md                  ← 本存檔點
-├── .gitignore                   ← 排除 out/
+├── .gitignore                   ← 排除 out/ save/
 └── src/maplestory/
     ├── Main.java
     ├── core/
-    │   ├── GameWindow.java      ← JFrame 視窗
-    │   ├── GamePanel.java       ← 主迴圈、HUD、面板切換（S/K/E）
-    │   └── Camera.java          ← Lerp 平滑鏡頭
+    │   ├── Camera.java          ← Lerp 鏡頭 + snapTo()
+    │   ├── GamePanel.java       ← 主迴圈、縮放、ESC選單、怪物分地圖管理
+    │   ├── GameWindow.java      ← 可縮放 JFrame，CardLayout
+    │   ├── MapManager.java      ← 6 張地圖（village/novice1~3/battle/arctic）
+    │   ├── SaveManager.java     ← JSON 存讀刪，3 個槽位
+    │   └── TitleScreen.java     ← 標題畫面（縮放支援、刪除確認）
     ├── entity/
-    │   ├── Player.java          ← 火柴人玩家、移動、跳躍、攻擊、RPG 數值
-    │   └── Monster.java         ← 怪物 AI、追擊、受傷、死亡動畫
+    │   ├── Monster.java         ← 多型態怪物AI + ICE屬性
+    │   ├── MonsterType.java     ← 列舉（SLIME/BOAR/BAT/ICE_SLIME/POLAR_BEAR/ICE_BAT）
+    │   ├── NPC.java             ← 村莊 NPC（靜待動畫、名牌）
+    │   └── Player.java          ← 玩家（梯子攀爬、冰緩速、EXP/升等）
     ├── input/
-    │   └── InputHandler.java    ← ← → Space Z 鍵盤監聽
+    │   └── InputHandler.java    ← 按鍵綁定查詢
+    ├── item/
+    │   ├── Equipment.java       ← 裝備資料（8格）
+    │   └── EquipSlot.java       ← 裝備格枚舉
+    ├── job/
+    │   ├── Job.java             ← 職業抽象基底
+    │   ├── Skill.java           ← 技能基底
+    │   ├── SkillShockwave.java  ← 衝擊波技能
+    │   ├── SkillThrust.java     ← 刺擊技能
+    │   └── Warrior.java         ← 劍士（第一轉）
+    ├── keybind/
+    │   ├── ActionType.java      ← 動作枚舉
+    │   └── KeyBindingManager.java ← 雙向映射 + 存讀檔
     ├── map/
-    │   ├── GameMap.java         ← 目前唯一地圖（戰鬥場景）
-    │   └── Platform.java        ← 平台資料 + 繪製
+    │   ├── ArcticMap.java       ← 極地冰原（極光、雪粒子、梯子）
+    │   ├── BaseMap.java         ← 抽象基底（getPlatforms/getPortals/getLadders/getNPCs）
+    │   ├── GameMap.java         ← 冒險平原（戰鬥地圖）
+    │   ├── Ladder.java          ← 梯子物件（碰撞區 + 木頭繪製）
+    │   ├── NoviceMap1.java      ← 新手森林一區（晴天，史萊姆）★新
+    │   ├── NoviceMap2.java      ← 新手森林二區（林間，史萊姆+蝙蝠）★新
+    │   ├── NoviceMap3.java      ← 新手森林三區（傍晚，野豬+蝙蝠）★新
+    │   ├── Platform.java        ← 平台物件
+    │   ├── Portal.java          ← 傳送門（旋轉光暈動畫）
+    │   └── VillageMap.java      ← 新手村（左傳送門→novice1，右→battle）
     └── ui/
-        ├── StatusPanel.java     ← S 鍵，完整顯示 STR/DEX/INT/LUK/HP/MP
-        ├── SkillPanel.java      ← K 鍵，框架佔位（Phase 13 實作）
-        └── EquipPanel.java      ← E 鍵，8 格框架（Phase 14 實作）
+        ├── EquipPanel.java      ← 裝備面板（E鍵，佔位）
+        ├── KeyBindingPanel.java ← 按鍵設定（B鍵，拖曳綁定）
+        ├── PauseMenu.java       ← ESC暫停選單 ★新
+        ├── SkillPanel.java      ← 技能面板（K鍵，佔位）
+        └── StatusPanel.java     ← 狀態面板（S鍵，完整 STR/DEX/INT/LUK）
 ```
 
 ---
 
-## 5. 🎮 遊戲規格摘要（給下一個 Session 參考）
+## 5. 🎮 遊戲規格摘要
 
 | 項目 | 內容 |
 |------|------|
-| 視窗大小 | 800 × 580（遊戲 500 + HUD 80） |
-| 地圖寬度 | 2000 px（可卷軸） |
-| 操作鍵 | ← → 移動、Space 跳躍、Z 攻擊、S/K/E 開面板 |
-| 職業規劃 | 新手 → 戰士(Lv10) → 勇士(Lv30)，架構可擴充 |
-| 角色外型 | 純 Java2D 火柴人（無圖片檔） |
-| 四維屬性 | STR / DEX / INT / LUK，升等手動分配 |
-| 裝備格 | 8 格：頭盔/上衣/下衣/武器/手套/鞋/披風/耳環 |
-| 寵物 | 欄位預留，功能未來擴充 |
+| 視窗大小 | 可自由縮放（邏輯 800×580，等比縮放，黑邊補齊） |
+| 存檔位置 | save/slot1~3.json + save/keybindings.json |
+| 地圖流程 | 新手村 → 新手一/二/三區 → 冒險平原 → 極地冰原 |
+| 操作鍵 | ← → 移動、Space 跳躍、↑↓ 爬梯、Z 攻擊、Q/W 技能 |
+| 暫停 | ESC（可存檔/刪檔/回主畫面/退出） |
+| 面板 | S/K/E/B 開狀態/技能/裝備/按鍵設定面板 |
+| 職業 | 劍士（Lv10 自動解鎖，未來 Phase 5 改為可選） |
 | 框架 | 純 Java + Swing（不需額外安裝） |
-| 開發語言 | Java（使用者：Windows 11，Java v24） |
+| Java 版本 | v24（Windows 11） |
