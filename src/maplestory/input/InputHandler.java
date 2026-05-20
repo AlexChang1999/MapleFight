@@ -1,65 +1,70 @@
 package maplestory.input;
 
 import maplestory.entity.Player;
+import maplestory.keybind.ActionType;
+import maplestory.keybind.KeyBindingManager;
 
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
 /**
- * 負責監聽鍵盤輸入，並把指令傳給玩家。
- * 繼承 KeyAdapter（只需要覆寫需要的方法，不用全部實作）。
+ * 鍵盤輸入處理器。
+ * 不再寫死按鍵，改為透過 KeyBindingManager 查詢動作。
  *
- * 按鍵配置：
- *   ← →     移動
- *   Space   跳躍
- *   Z       普通攻擊（交替劈砍 / 突刺）
- *   Q       技能一：突刺（高傷害單體）
- *   W       技能二：衝擊波（範圍嘲諷）
+ * 只處理「遊戲操作類」動作（Category.GAME）；
+ * 「介面開關類」（Category.UI）由 GamePanel 的另一個 KeyAdapter 處理。
  *
- * 注意：Q / W 技能需要怪物列表才能計算傷害，
- *       因此先存放在 pendingSkill 欄位，
- *       由 GamePanel.update() 在每幀取出並執行。
+ * 待發技能（Q / W）存入 pendingSkill，
+ * 由 GamePanel.update() 每幀取出並帶入怪物列表後執行。
  */
 public class InputHandler extends KeyAdapter {
 
-    private final Player player;
+    private final Player            player;
+    private final KeyBindingManager bindings;
 
-    /**
-     * 待執行的技能索引（-1 = 無）。
-     * InputHandler 只負責記錄「玩家想用哪個技能」，
-     * 實際帶入 monsters 的呼叫由 GamePanel 處理。
-     */
+    /** 待執行的技能索引（-1 = 無），GamePanel 每幀 poll 一次 */
     private int pendingSkill = -1;
 
-    public InputHandler(Player player) {
-        this.player = player;
+    // ─────────────────────────────────────────────────────────
+    public InputHandler(Player player, KeyBindingManager bindings) {
+        this.player   = player;
+        this.bindings = bindings;
     }
 
     @Override
     public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT  -> player.setMovingLeft(true);
-            case KeyEvent.VK_RIGHT -> player.setMovingRight(true);
-            case KeyEvent.VK_SPACE -> player.jump();
-            case KeyEvent.VK_Z     -> player.attack();
-            case KeyEvent.VK_Q     -> pendingSkill = 0; // 突刺
-            case KeyEvent.VK_W     -> pendingSkill = 1; // 衝擊波
-        }
-    }
+        ActionType action = bindings.getAction(e.getKeyCode());
+        if (action == null) return;
 
-    /** GamePanel 每幀呼叫：取出待發技能並清除（-1 = 無） */
-    public int pollPendingSkill() {
-        int s = pendingSkill;
-        pendingSkill = -1;
-        return s;
+        // 只處理 GAME 類動作（UI 開關由 GamePanel 處理）
+        switch (action) {
+            case MOVE_LEFT  -> player.setMovingLeft(true);
+            case MOVE_RIGHT -> player.setMovingRight(true);
+            case JUMP       -> player.jump();
+            case ATTACK     -> player.attack();
+            case SKILL_0    -> pendingSkill = 0;
+            case SKILL_1    -> pendingSkill = 1;
+            default         -> {} // UI 動作忽略（GamePanel 處理）
+        }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        // 只有移動鍵需要「放開」事件，跳躍和攻擊是即時觸發
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT  -> player.setMovingLeft(false);
-            case KeyEvent.VK_RIGHT -> player.setMovingRight(false);
+        ActionType action = bindings.getAction(e.getKeyCode());
+        if (action == null) return;
+
+        // 「放開」只影響持續性動作（移動）
+        switch (action) {
+            case MOVE_LEFT  -> player.setMovingLeft(false);
+            case MOVE_RIGHT -> player.setMovingRight(false);
+            default         -> {}
         }
+    }
+
+    /** GamePanel 每幀呼叫：取出待發技能索引，並清除（-1 = 無） */
+    public int pollPendingSkill() {
+        int s = pendingSkill;
+        pendingSkill = -1;
+        return s;
     }
 }
