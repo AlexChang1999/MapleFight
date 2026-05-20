@@ -8,17 +8,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 遊戲地圖：管理所有平台，並負責繪製背景與地形。
- * 地圖總寬度 2000 像素，可左右卷軸。
+ * 戰鬥地圖（原 GameMap），繼承 BaseMap。
+ * 地圖總寬度 2000 像素，有怪物和平台。
+ * 左側有傳送門可回到村莊。
  */
-public class GameMap {
+public class GameMap extends BaseMap {
 
     public static final int MAP_WIDTH = 2000;
 
     private final List<Platform> platforms = new ArrayList<>();
+    private final List<Portal>   portals   = new ArrayList<>();
 
     public GameMap() {
         buildMap();
+        // 左側傳送門 → 回村莊，玩家出生在村莊右側傳送門旁
+        int groundY = GamePanel.GAME_HEIGHT - 40;
+        portals.add(new Portal(
+            30, groundY - Portal.HEIGHT,
+            "village", 1180, groundY - 80,
+            "回村莊"
+        ));
     }
 
     /** 手動排列所有平台（地面 + 中層 + 高層） */
@@ -99,7 +108,10 @@ public class GameMap {
         g.fillOval(x + w / 2,  y + h / 4, w / 2, h * 3 / 4);
     }
 
-    // ── Getter ───────────────────────────────────────────────
-    public List<Platform> getPlatforms() { return platforms; }
-    public int getMapWidth()             { return MAP_WIDTH; }
+    // ── BaseMap 介面實作 ──────────────────────────────────────
+    @Override public void           update(double dt)  { /* 戰鬥地圖無需每幀更新 */ }
+    @Override public List<Platform> getPlatforms()     { return platforms; }
+    @Override public List<Portal>   getPortals()       { return portals; }
+    @Override public int            getMapWidth()      { return MAP_WIDTH; }
+    @Override public String         getMapId()         { return "battle"; }
 }

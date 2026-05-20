@@ -1,7 +1,7 @@
 package maplestory.entity;
 
 import maplestory.core.Camera;
-import maplestory.map.GameMap;
+import maplestory.map.BaseMap;
 import maplestory.map.Platform;
 
 import java.awt.*;
@@ -57,7 +57,7 @@ public class Monster {
     }
 
     // ── 每幀更新 ─────────────────────────────────────────────
-    public void update(double dt, GameMap gameMap, Player player) {
+    public void update(double dt, BaseMap gameMap, Player player) {
         if (!alive) {
             deathTimer -= dt;
             return;
@@ -97,7 +97,7 @@ public class Monster {
     }
 
     // ── 平台碰撞 ─────────────────────────────────────────────
-    private void checkPlatformCollision(GameMap gameMap, double dt) {
+    private void checkPlatformCollision(BaseMap gameMap, double dt) {
         for (Platform p : gameMap.getPlatforms()) {
             if (x + WIDTH <= p.getX() || x >= p.getX() + p.getWidth()) continue;
 
