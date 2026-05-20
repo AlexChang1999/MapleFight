@@ -46,12 +46,12 @@ public class VillageMap extends BaseMap {
         // 村長老人（橘色，面右）
         npcs.add(new NPC(260, groundY - NPC.HEIGHT,
                          "村長老人", new Color(230, 150, 60), true));
-        // 道具商人（青色，面左，站在道具店前）
+        // 道具商人（青色，面左，站在道具店前；shopId="item"）
         npcs.add(new NPC(590, groundY - NPC.HEIGHT,
-                         "道具商人", new Color(60, 200, 180), false));
-        // 武器鐵匠（紅色，面右，站在武器店前）
+                         "道具商人", new Color(60, 200, 180), false, "item"));
+        // 武器鐵匠（紅色，面右，站在武器店前；shopId="weapon"）
         npcs.add(new NPC(990, groundY - NPC.HEIGHT,
-                         "武器鐵匠", new Color(210, 80, 80), true));
+                         "武器鐵匠", new Color(210, 80, 80), true, "weapon"));
     }
 
     // ── 傳送門 ───────────────────────────────────────────────

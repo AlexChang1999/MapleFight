@@ -28,10 +28,12 @@ public enum ActionType {
     SKILL_1   ("技能：衝擊波", Category.GAME, new Color(140,  80, 230)),
 
     // ── 介面開關 ─────────────────────────────────────────────
-    UI_STATUS ("開啟狀態面板", Category.UI, new Color( 80, 200, 120)),
-    UI_SKILL  ("開啟技能面板", Category.UI, new Color( 80, 200, 120)),
-    UI_EQUIP  ("開啟裝備面板", Category.UI, new Color( 80, 200, 120)),
-    UI_KEYBIND("按鍵設定",    Category.UI, new Color(180, 180, 180));
+    UI_STATUS    ("開啟狀態面板", Category.UI, new Color( 80, 200, 120)),
+    UI_SKILL     ("開啟技能面板", Category.UI, new Color( 80, 200, 120)),
+    UI_EQUIP     ("開啟裝備面板", Category.UI, new Color( 80, 200, 120)),
+    UI_INVENTORY ("開啟背包",    Category.UI, new Color(200, 170,  80)),
+    UI_INTERACT  ("NPC 互動",    Category.UI, new Color(255, 210,  60)),
+    UI_KEYBIND   ("按鍵設定",    Category.UI, new Color(180, 180, 180));
 
     // ─────────────────────────────────────────────────────────
     public final String   displayName; // 面板上顯示的名稱

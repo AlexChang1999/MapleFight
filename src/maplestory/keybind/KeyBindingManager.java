@@ -54,6 +54,8 @@ public class KeyBindingManager {
         bind(KeyEvent.VK_S, ActionType.UI_STATUS);
         bind(KeyEvent.VK_K, ActionType.UI_SKILL);
         bind(KeyEvent.VK_E, ActionType.UI_EQUIP);
+        bind(KeyEvent.VK_I, ActionType.UI_INVENTORY);
+        bind(KeyEvent.VK_F, ActionType.UI_INTERACT);
         bind(KeyEvent.VK_B, ActionType.UI_KEYBIND);
     }
 

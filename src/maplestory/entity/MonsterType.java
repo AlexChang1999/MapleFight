@@ -6,13 +6,13 @@ package maplestory.entity;
  */
 public enum MonsterType {
 
-    //           名稱        寬   高   HP   ATK  偵測  速度  EXP  冰屬性
-    SLIME     ("史萊姆",    36, 28,  50,  8,  240,  55,   30, false),
-    BOAR      ("野豬",      46, 34, 100, 15,  280,  90,   80, false),
-    BAT       ("蝙蝠",      38, 26,  60, 10,  280,  75,   50, false),
-    ICE_SLIME ("冰晶史萊姆",38, 30,  80, 10,  240,  45,   55, true),
-    POLAR_BEAR("極地熊",    58, 44, 180, 22,  260,  65,  160, true),
-    ICE_BAT   ("冰蝠",      38, 26,  90, 12,  300,  95,   80, true);
+    //           名稱        寬   高   HP   ATK  偵測  速度  EXP  冰屬性  重生秒
+    SLIME     ("史萊姆",    36, 28,  50,  8,  240,  55,   30, false,  8),
+    BOAR      ("野豬",      46, 34, 100, 15,  280,  90,   80, false, 12),
+    BAT       ("蝙蝠",      38, 26,  60, 10,  280,  75,   50, false, 10),
+    ICE_SLIME ("冰晶史萊姆",38, 30,  80, 10,  240,  45,   55, true,  10),
+    POLAR_BEAR("極地熊",    58, 44, 180, 22,  260,  65,  160, true,  15),
+    ICE_BAT   ("冰蝠",      38, 26,  90, 12,  300,  95,   80, true,  12);
 
     public final String  displayName;
     public final int     width;
@@ -23,9 +23,10 @@ public enum MonsterType {
     public final int     moveSpeed;
     public final int     expReward;   // 擊殺 EXP 獎勵
     public final boolean iceType;     // 冰屬性：攻擊時使玩家緩速
+    public final int     respawnTime; // 重生等待秒數
 
     MonsterType(String name, int w, int h, int hp, int atk,
-                int detect, int speed, int exp, boolean ice) {
+                int detect, int speed, int exp, boolean ice, int respawn) {
         this.displayName = name;
         this.width       = w;
         this.height      = h;
@@ -35,5 +36,6 @@ public enum MonsterType {
         this.moveSpeed   = speed;
         this.expReward   = exp;
         this.iceType     = ice;
+        this.respawnTime = respawn;
     }
 }

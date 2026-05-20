@@ -1,10 +1,15 @@
 package maplestory.entity;
 
 import maplestory.core.Camera;
+import maplestory.item.Consumable;
+import maplestory.item.DropItem;
+import maplestory.item.Equipment;
 import maplestory.map.BaseMap;
 import maplestory.map.Platform;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 通用怪物類別。
@@ -30,7 +35,8 @@ public class Monster {
 
     // ── 位置與速度 ───────────────────────────────────────────
     private double x, y;
-    private final double spawnY; // 蝙蝠懸停基準高度
+    private final double spawnX; // 重生 X 座標
+    private final double spawnY; // 蝙蝠懸停基準高度 / 重生 Y 座標
     private double velY = 0;
     private boolean facingRight = false;
 
@@ -54,7 +60,11 @@ public class Monster {
     private double  tauntTimer = 0;
 
     // ── EXP 掉落（一次性讀取） ────────────────────────────────
-    private boolean justDied = false;
+    private boolean justDied   = false;
+    private boolean dropPending = false; // 等待 GamePanel 讀取掉落物
+
+    // ── 重生 ─────────────────────────────────────────────────
+    private double  respawnTimer = 0;
 
     // ── 野豬專屬：衝刺 ───────────────────────────────────────
     private boolean boarCharging    = false;
@@ -66,7 +76,8 @@ public class Monster {
         this.type   = type;
         this.x      = x;
         this.y      = y;
-        this.spawnY = y; // 蝙蝠懸停目標
+        this.spawnX = x; // 重生座標
+        this.spawnY = y; // 蝙蝠懸停目標 / 重生座標
         this.width  = type.width;
         this.height = type.height;
         this.maxHp  = type.maxHp;
@@ -78,7 +89,15 @@ public class Monster {
     // 每幀更新
     // ─────────────────────────────────────────────────────────
     public void update(double dt, BaseMap gameMap, Player player) {
-        if (!alive) { deathTimer -= dt; return; }
+        if (!alive) {
+            if (deathTimer > 0) {
+                deathTimer -= dt;
+            } else if (respawnTimer > 0) {
+                respawnTimer -= dt;
+                if (respawnTimer <= 0) doRespawn();
+            }
+            return;
+        }
 
         idleTimer += dt;
 
@@ -211,10 +230,12 @@ public class Monster {
         lastDamage = dmg;
         hurtTimer  = 0.35;
         if (hp <= 0) {
-            hp         = 0;
-            alive      = false;
-            deathTimer = 1.2;
-            justDied   = true; // 讓 GamePanel 讀取 EXP
+            hp           = 0;
+            alive        = false;
+            deathTimer   = 1.2;
+            respawnTimer = type.respawnTime;
+            justDied     = true;  // 讓 GamePanel 讀取 EXP
+            dropPending  = true;  // 讓 GamePanel 讀取掉落物
         }
     }
 
@@ -675,12 +696,98 @@ public class Monster {
         g.setStroke(new BasicStroke(1f));
     }
 
+    // ── 重生 ─────────────────────────────────────────────────
+    private void doRespawn() {
+        x            = spawnX;
+        y            = spawnY;
+        hp           = maxHp;
+        alive        = true;
+        velY         = 0;
+        hurtTimer    = 0;
+        attackCooldown = 0;
+        boarCharging    = false;
+        boarChargeTimer = 0;
+        boarChargeCd    = 0;
+        taunted      = false;
+        tauntTimer   = 0;
+    }
+
+    // ── 掉落物生成 ───────────────────────────────────────────
+
+    /**
+     * 依怪物種類隨機生成掉落物清單。
+     * 每次死亡呼叫一次；GamePanel 透過 pollDropPending() 確認後呼叫此方法。
+     */
+    public List<DropItem> rollDrops() {
+        List<DropItem> list = new ArrayList<>();
+        double cx = x + width / 2.0;
+        double cy = y;
+
+        // 金幣：固定掉落（exp 的 50%~150%）
+        int gold = (int)(type.expReward * (0.5 + Math.random()));
+        list.add(DropItem.gold(cx, cy, gold));
+
+        // 消耗品掉落機率（依種類）
+        double hpPot = 0, mpPot = 0;
+        switch (type) {
+            case SLIME      -> { hpPot = 0.35; mpPot = 0.15; }
+            case BOAR       -> { hpPot = 0.45; mpPot = 0.10; }
+            case BAT        -> { hpPot = 0.20; mpPot = 0.30; }
+            case ICE_SLIME  -> { hpPot = 0.30; mpPot = 0.25; }
+            case POLAR_BEAR -> { hpPot = 0.50; mpPot = 0.15; }
+            case ICE_BAT    -> { hpPot = 0.20; mpPot = 0.35; }
+        }
+        if (Math.random() < hpPot) {
+            Consumable c = Math.random() < 0.25
+                    ? Consumable.orangePotion()
+                    : Consumable.redPotion();
+            list.add(DropItem.consumable(cx + (Math.random() - 0.5) * 20, cy, c));
+        }
+        if (Math.random() < mpPot) {
+            Consumable c = Math.random() < 0.2
+                    ? Consumable.manaElixir()
+                    : Consumable.bluePotion();
+            list.add(DropItem.consumable(cx + (Math.random() - 0.5) * 20, cy, c));
+        }
+
+        // 裝備掉落（低機率，依種類決定種類）
+        double eqRate = switch (type) {
+            case SLIME, BAT   -> 0.05;
+            case BOAR         -> 0.08;
+            case ICE_SLIME, ICE_BAT -> 0.06;
+            case POLAR_BEAR   -> 0.12;
+        };
+        if (Math.random() < eqRate) {
+            Equipment eq = rollEquipment();
+            if (eq != null) list.add(DropItem.equipment(cx, cy, eq));
+        }
+
+        return list;
+    }
+
+    private Equipment rollEquipment() {
+        double r = Math.random();
+        return switch (type) {
+            case SLIME, ICE_SLIME -> r < 0.5 ? Equipment.noviceHelmet()   : Equipment.hempBoots();
+            case BOAR             -> r < 0.5 ? Equipment.leatherTop()      : Equipment.noviceHelmet();
+            case BAT, ICE_BAT     -> r < 0.5 ? Equipment.magicEarring()    : Equipment.hempGloves();
+            case POLAR_BEAR       -> r < 0.4 ? Equipment.reinforcedSword() :
+                                     r < 0.7 ? Equipment.steelCape()       : Equipment.leatherTop();
+        };
+    }
+
     // ── Getter / Setter ──────────────────────────────────────
     /**
      * 讀取並清除「剛死亡」旗標（每死只觸發一次，GamePanel 用來給玩家 EXP）。
      */
     public boolean pollJustDied() {
         if (justDied) { justDied = false; return true; }
+        return false;
+    }
+
+    /** 讀取並清除「待掉落」旗標（每死只觸發一次，GamePanel 呼叫 rollDrops()）。 */
+    public boolean pollDropPending() {
+        if (dropPending) { dropPending = false; return true; }
         return false;
     }
     public int     getExpReward()  { return type.expReward; }

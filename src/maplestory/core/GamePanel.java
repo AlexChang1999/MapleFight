@@ -5,13 +5,16 @@ import maplestory.entity.MonsterType;
 import maplestory.entity.NPC;
 import maplestory.entity.Player;
 import maplestory.input.InputHandler;
+import maplestory.item.DropItem;
 import maplestory.job.Skill;
 import maplestory.keybind.ActionType;
 import maplestory.keybind.KeyBindingManager;
 import maplestory.map.BaseMap;
 import maplestory.ui.EquipPanel;
+import maplestory.ui.InventoryPanel;
 import maplestory.ui.KeyBindingPanel;
 import maplestory.ui.PauseMenu;
+import maplestory.ui.ShopPanel;
 import maplestory.ui.SkillPanel;
 import maplestory.ui.StatusPanel;
 
@@ -61,11 +64,25 @@ public class GamePanel extends JPanel implements Runnable {
 
     // ── UI 面板 ───────────────────────────────────────────────
     private final StatusPanel     statusPanel;
-    private final SkillPanel      skillPanel  = new SkillPanel();
-    private final EquipPanel      equipPanel  = new EquipPanel();
+    private final SkillPanel      skillPanel      = new SkillPanel();
+    private final EquipPanel      equipPanel      = new EquipPanel();
+    private final InventoryPanel  inventoryPanel  = new InventoryPanel();
+    private final ShopPanel       shopPanel       = new ShopPanel();
     private final KeyBindingPanel keybindPanel;
-    /** 目前顯示的面板（null = 無）。可選值："status"|"skill"|"equip"|"keybind" */
+    /** 目前顯示的面板（null = 無）。可選值："status"|"skill"|"equip"|"inventory"|"shop"|"keybind" */
     private String activePanel = null;
+
+    // ── NPC 互動 ─────────────────────────────────────────────
+    /** 目前玩家旁邊可互動的 NPC（null = 無） */
+    private NPC nearShopNpc = null;
+    private static final double NPC_INTERACT_RANGE = 80;
+
+    // ── 掉落物 ───────────────────────────────────────────────
+    private final List<DropItem> drops = new ArrayList<>();
+
+    // ── 撿取提示文字 ─────────────────────────────────────────
+    private String pickupNotice      = "";
+    private double pickupNoticeTimer = 0;
 
     // ─────────────────────────────────────────────────────────
     /**
@@ -105,40 +122,63 @@ public class GamePanel extends JPanel implements Runnable {
         statusPanel  = new StatusPanel();
         keybindPanel = new KeyBindingPanel(keyBindings);
 
-        // ── 怪物初始化：新手森林一區（史萊姆 x3）────────────
-        novice1Monsters.add(new Monster( 420, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster( 780, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster(1200, 300, MonsterType.SLIME));
+        // ── 怪物初始化：新手森林一區（史萊姆 x6）────────────
+        novice1Monsters.add(new Monster( 350, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 580, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 820, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1050, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1280, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1520, 300, MonsterType.SLIME));
 
-        // ── 新手森林二區（史萊姆 x2 + 蝙蝠 x2）────────────
-        novice2Monsters.add(new Monster( 400, 300, MonsterType.SLIME));
-        novice2Monsters.add(new Monster( 980, 300, MonsterType.SLIME));
-        novice2Monsters.add(new Monster( 560, 200, MonsterType.BAT));
-        novice2Monsters.add(new Monster(1350, 200, MonsterType.BAT));
+        // ── 新手森林二區（史萊姆 x4 + 蝙蝠 x4）────────────
+        novice2Monsters.add(new Monster( 320, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 680, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster(1100, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster(1550, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 480, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster( 850, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1280, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1700, 200, MonsterType.BAT));
 
-        // ── 新手森林三區（野豬 x2 + 蝙蝠 x2）────────────────
-        novice3Monsters.add(new Monster( 520, 290, MonsterType.BOAR));
+        // ── 新手森林三區（野豬 x4 + 蝙蝠 x5）────────────────
+        novice3Monsters.add(new Monster( 400, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster( 750, 290, MonsterType.BOAR));
         novice3Monsters.add(new Monster(1200, 290, MonsterType.BOAR));
-        novice3Monsters.add(new Monster( 680, 200, MonsterType.BAT));
-        novice3Monsters.add(new Monster(1550, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1700, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster( 560, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster( 920, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1380, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1850, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster( 200, 200, MonsterType.BAT));
 
-        // ── 冒險平原（史萊姆 x3 + 野豬 x2 + 蝙蝠 x2）───────
-        battleMonsters.add(new Monster( 450, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster( 750, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster(1050, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster( 620, 290, MonsterType.BOAR));
-        battleMonsters.add(new Monster(1280, 290, MonsterType.BOAR));
+        // ── 冒險平原（史萊姆 x5 + 野豬 x4 + 蝙蝠 x4）───────
+        battleMonsters.add(new Monster( 350, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 600, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 900, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1200, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1550, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 480, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster( 800, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1100, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1450, 290, MonsterType.BOAR));
         battleMonsters.add(new Monster( 550, 200, MonsterType.BAT));
-        battleMonsters.add(new Monster(1100, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster( 950, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1300, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1750, 200, MonsterType.BAT));
 
-        // ── 極地冰原（冰晶史萊姆 x3 + 極地熊 x2 + 冰蝠 x2）
-        arcticMonsters.add(new Monster( 400, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster( 900, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster(1600, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster( 700, 290, MonsterType.POLAR_BEAR));
-        arcticMonsters.add(new Monster(1900, 290, MonsterType.POLAR_BEAR));
-        arcticMonsters.add(new Monster( 600, 200, MonsterType.ICE_BAT));
+        // ── 極地冰原（冰晶史萊姆 x5 + 極地熊 x3 + 冰蝠 x4）
+        arcticMonsters.add(new Monster( 350, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster( 700, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1100, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1500, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1900, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster( 550, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(1250, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(1850, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster( 450, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster( 900, 200, MonsterType.ICE_BAT));
         arcticMonsters.add(new Monster(1400, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(1800, 200, MonsterType.ICE_BAT));
 
         // ── 鍵盤監聽：UI 面板 + ESC + F5 ────────────────────
         addKeyListener(new KeyAdapter() {
@@ -165,11 +205,13 @@ public class GamePanel extends JPanel implements Runnable {
                 }
 
                 switch (action) {
-                    case UI_STATUS  -> togglePanel("status");
-                    case UI_SKILL   -> togglePanel("skill");
-                    case UI_EQUIP   -> togglePanel("equip");
-                    case UI_KEYBIND -> togglePanel("keybind");
-                    default         -> {}
+                    case UI_STATUS    -> togglePanel("status");
+                    case UI_SKILL     -> togglePanel("skill");
+                    case UI_EQUIP     -> togglePanel("equip");
+                    case UI_INVENTORY -> togglePanel("inventory");
+                    case UI_INTERACT  -> handleInteract();
+                    case UI_KEYBIND   -> togglePanel("keybind");
+                    default           -> {}
                 }
             }
 
@@ -189,6 +231,12 @@ public class GamePanel extends JPanel implements Runnable {
                     handlePauseMenuClick(lp.x, lp.y);
                 } else if ("keybind".equals(activePanel)) {
                     keybindPanel.mousePressed(lp.x, lp.y);
+                } else if ("inventory".equals(activePanel)) {
+                    inventoryPanel.mouseClicked(lp.x, lp.y, player);
+                } else if ("equip".equals(activePanel)) {
+                    equipPanel.mouseClicked(lp.x, lp.y, player);
+                } else if ("shop".equals(activePanel)) {
+                    shopPanel.mouseClicked(lp.x, lp.y, player);
                 }
             }
             @Override public void mouseReleased(MouseEvent e) {
@@ -207,7 +255,15 @@ public class GamePanel extends JPanel implements Runnable {
             }
             @Override public void mouseMoved(MouseEvent e) {
                 Point lp = toLogical(e.getX(), e.getY());
-                if (paused) pauseMenu.updateHover(lp.x, lp.y);
+                if (paused) {
+                    pauseMenu.updateHover(lp.x, lp.y);
+                } else if ("inventory".equals(activePanel)) {
+                    inventoryPanel.mouseMoved(lp.x, lp.y);
+                } else if ("equip".equals(activePanel)) {
+                    equipPanel.mouseMoved(lp.x, lp.y);
+                } else if ("shop".equals(activePanel)) {
+                    shopPanel.mouseMoved(lp.x, lp.y);
+                }
             }
         });
     }
@@ -270,6 +326,46 @@ public class GamePanel extends JPanel implements Runnable {
             SaveManager.delete(saveSlot);
             paused = false;
             returnToTitleCallback.run();
+        }
+    }
+
+    /** F 鍵互動：有商店 NPC 在旁邊就開商店，已開就關 */
+    private void handleInteract() {
+        if ("shop".equals(activePanel)) {
+            activePanel = null;
+            return;
+        }
+        if (nearShopNpc != null) {
+            String shopId = nearShopNpc.getShopId();
+            if ("item".equals(shopId)) {
+                shopPanel.open("道具商人的商店", ShopPanel.itemShopEntries());
+            } else if ("weapon".equals(shopId)) {
+                shopPanel.open("武器鐵匠的商店", ShopPanel.weaponShopEntries());
+            }
+            activePanel = "shop";
+        }
+    }
+
+    /** 處理撿取掉落物：金幣加入玩家，道具加入背包，並顯示提示文字 */
+    private void handlePickup(DropItem drop) {
+        switch (drop.getType()) {
+            case GOLD -> {
+                player.gainGold(drop.getGoldAmount());
+                pickupNotice      = "+" + drop.getGoldAmount() + " G";
+                pickupNoticeTimer = 1.5;
+            }
+            case CONSUMABLE -> {
+                boolean ok = player.getInventory().addConsumable(drop.getConsumable());
+                pickupNotice      = ok ? "撿取：" + drop.getConsumable().getName()
+                                       : "消耗品背包已滿！";
+                pickupNoticeTimer = 1.5;
+            }
+            case EQUIPMENT -> {
+                boolean ok = player.getInventory().addEquipment(drop.getEquipment());
+                pickupNotice      = ok ? "撿取：" + drop.getEquipment().getName()
+                                       : "裝備背包已滿！";
+                pickupNoticeTimer = 1.5;
+            }
         }
     }
 
@@ -370,14 +466,44 @@ public class GamePanel extends JPanel implements Runnable {
 
             for (Monster m : curMonsters) {
                 m.update(dt, currentMap, player);
-                if (m.pollJustDied()) player.gainExp(m.getExpReward());
+                if (m.pollJustDied()) {
+                    player.gainExp(m.getExpReward());
+                }
+                if (m.pollDropPending()) {
+                    drops.addAll(m.rollDrops());
+                }
             }
         } else {
             prevAttacking = false;
         }
 
-        // NPC 更新
-        for (NPC npc : currentMap.getNPCs()) npc.update(dt);
+        // 掉落物更新 + 自動撿取
+        if (pickupNoticeTimer > 0) pickupNoticeTimer -= dt;
+        drops.removeIf(drop -> {
+            drop.update(dt);
+            if (drop.tryPickup(player)) {
+                handlePickup(drop);
+                return true;
+            }
+            return drop.isExpired();
+        });
+
+        // 背包面板計時更新
+        if ("inventory".equals(activePanel)) inventoryPanel.update(dt);
+        if ("equip".equals(activePanel))     equipPanel.update(dt);
+        if ("shop".equals(activePanel))      shopPanel.update(dt);
+
+        // NPC 更新 + 近距離偵測（只在村莊有商店 NPC）
+        nearShopNpc = null;
+        for (NPC npc : currentMap.getNPCs()) {
+            npc.update(dt);
+            if (npc.hasShop()) {
+                boolean near = npc.isNearPlayer(player.getX(), player.getY(),
+                                                NPC_INTERACT_RANGE);
+                npc.setShowHint(near);
+                if (near) nearShopNpc = npc;
+            }
+        }
     }
 
     // ── 繪製 ─────────────────────────────────────────────────
@@ -413,10 +539,23 @@ public class GamePanel extends JPanel implements Runnable {
 
         // UI 面板（最上層）
         switch (activePanel == null ? "" : activePanel) {
-            case "status"  -> statusPanel.draw(g2d, player);
-            case "skill"   -> skillPanel.draw(g2d);
-            case "equip"   -> equipPanel.draw(g2d);
-            case "keybind" -> keybindPanel.draw(g2d);
+            case "status"    -> statusPanel.draw(g2d, player);
+            case "skill"     -> skillPanel.draw(g2d);
+            case "equip"     -> equipPanel.draw(g2d, player);
+            case "inventory" -> inventoryPanel.draw(g2d, player);
+            case "shop"      -> shopPanel.draw(g2d, player);
+            case "keybind"   -> keybindPanel.draw(g2d);
+        }
+
+        // 撿取提示（浮動於 HUD 上方）
+        if (pickupNoticeTimer > 0) {
+            float alpha = (float) Math.min(1.0, pickupNoticeTimer);
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
+            g2d.setColor(new Color(220, 220, 100, (int)(alpha * 220)));
+            FontMetrics fm = g2d.getFontMetrics();
+            g2d.drawString(pickupNotice,
+                           (SCREEN_WIDTH - fm.stringWidth(pickupNotice)) / 2,
+                           GAME_HEIGHT - 20);
         }
 
         // 暫停選單（最頂層）
@@ -439,6 +578,9 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         currentMap.draw(g, camera);
+
+        // 掉落物（在怪物下層，玩家下層）
+        for (DropItem drop : drops) drop.draw(g, camera);
 
         for (Monster m : currentMonsters()) m.draw(g, camera);
 
@@ -489,8 +631,12 @@ public class GamePanel extends JPanel implements Runnable {
         // 地圖名稱（從 mapId 動態解析）
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g.setColor(new Color(160, 160, 200));
-        String mapLabel = mapName(mapManager.getCurrentMap().getMapId());
-        g.drawString(mapLabel + "  [F5 存檔]  [ESC 選單]", 260, hudY + 44);
+        String mapLabel = mapManager.getCurrentMap().getMapId();
+        String interactHint = nearShopNpc != null
+                ? "  [" + getBoundKeyName(ActionType.UI_INTERACT) + "] 購物"
+                : "";
+        g.drawString(mapName(mapLabel) + "  [F5 存檔]  [ESC 選單]" + interactHint,
+                     260, hudY + 44);
 
         // 技能冷卻格
         if (player.getJob() != null && !mapManager.isOnMap("village")) {
@@ -508,11 +654,13 @@ public class GamePanel extends JPanel implements Runnable {
         g.drawString("EXP", 4, expY + 10);
 
         // 快捷按鈕（右側）
-        drawHudButton(g, "技能 [" + getBoundKeyName(ActionType.UI_SKILL)  + "]",
+        drawHudButton(g, "技能 [" + getBoundKeyName(ActionType.UI_SKILL)      + "]",
+                      SCREEN_WIDTH - 350, hudY + 20);
+        drawHudButton(g, "背包 [" + getBoundKeyName(ActionType.UI_INVENTORY)  + "]",
                       SCREEN_WIDTH - 255, hudY + 20);
-        drawHudButton(g, "裝備 [" + getBoundKeyName(ActionType.UI_EQUIP)  + "]",
+        drawHudButton(g, "裝備 [" + getBoundKeyName(ActionType.UI_EQUIP)      + "]",
                       SCREEN_WIDTH - 160, hudY + 20);
-        drawHudButton(g, "狀態 [" + getBoundKeyName(ActionType.UI_STATUS) + "]",
+        drawHudButton(g, "狀態 [" + getBoundKeyName(ActionType.UI_STATUS)     + "]",
                       SCREEN_WIDTH -  65, hudY + 20);
 
         // 操作說明
@@ -524,8 +672,9 @@ public class GamePanel extends JPanel implements Runnable {
                    + " 攻:" + getBoundKeyName(ActionType.ATTACK)
                    + " Q技:" + getBoundKeyName(ActionType.SKILL_0)
                    + " W技:" + getBoundKeyName(ActionType.SKILL_1)
+                   + " 背包[" + getBoundKeyName(ActionType.UI_INVENTORY) + "]"
                    + " 按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "]",
-                   SCREEN_WIDTH - 410, hudY + 62);
+                   SCREEN_WIDTH - 490, hudY + 62);
     }
 
     private String mapName(String mapId) {

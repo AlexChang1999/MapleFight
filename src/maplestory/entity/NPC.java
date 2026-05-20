@@ -18,15 +18,25 @@ public class NPC {
     private final String  name;
     private final Color   bodyColor;
     private final boolean facingRight;
+    private final String  shopId;   // null = 無商店；"item" / "weapon" 等
 
-    private double idleTimer = 0; // 靜待動畫計時
+    private double idleTimer   = 0;   // 靜待動畫計時
+    private boolean showHint   = false; // 是否顯示「按 F 購物」提示
 
+    /** 無商店的 NPC */
     public NPC(double x, double y, String name, Color bodyColor, boolean facingRight) {
+        this(x, y, name, bodyColor, facingRight, null);
+    }
+
+    /** 有商店的 NPC */
+    public NPC(double x, double y, String name, Color bodyColor, boolean facingRight,
+               String shopId) {
         this.x           = x;
         this.y           = y;
         this.name        = name;
         this.bodyColor   = bodyColor;
         this.facingRight = facingRight;
+        this.shopId      = shopId;
     }
 
     public void update(double dt) {
@@ -42,6 +52,11 @@ public class NPC {
         sy += bob;
 
         int cx = sx + WIDTH / 2;
+
+        // ── 互動提示（有商店且玩家接近時）────────────────────
+        if (showHint && shopId != null) {
+            drawInteractHint(g, cx, sy - 30);
+        }
 
         // ── 名稱標籤 ─────────────────────────────────────────
         drawNameTag(g, cx, sy - 12);
@@ -74,6 +89,26 @@ public class NPC {
         g.setStroke(new BasicStroke(1f));
     }
 
+    /** 按 F 互動提示（黃色氣泡） */
+    private void drawInteractHint(Graphics2D g, int cx, int hintBottom) {
+        String text = "按 [F] 購物";
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+        FontMetrics fm = g.getFontMetrics();
+        int tw = fm.stringWidth(text);
+        int bw = tw + 12, bh = 17;
+        int bx = cx - bw / 2;
+        int by = hintBottom - bh;
+
+        // 黃色氣泡
+        g.setColor(new Color(200, 175, 30, 210));
+        g.fillRoundRect(bx, by, bw, bh, 5, 5);
+        g.setColor(new Color(255, 230, 80));
+        g.drawRoundRect(bx, by, bw, bh, 5, 5);
+        // 文字
+        g.setColor(new Color(30, 20, 0));
+        g.drawString(text, cx - tw / 2, hintBottom - 3);
+    }
+
     /** 繪製浮動在頭上的名稱標籤 */
     private void drawNameTag(Graphics2D g, int cx, int tagBottom) {
         g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
@@ -96,6 +131,18 @@ public class NPC {
         g.drawString(name, cx - tw / 2, tagBottom - 3);
     }
 
-    public double getX() { return x; }
-    public double getY() { return y; }
+    /** 設定「按 F 互動」提示是否顯示（由 GamePanel 每幀根據距離呼叫） */
+    public void setShowHint(boolean show) { showHint = show; }
+
+    /** 玩家中心是否在 range px 內 */
+    public boolean isNearPlayer(double px, double py, double range) {
+        double dx = (px + 12) - (x + WIDTH  / 2.0);
+        double dy = (py + 29) - (y + HEIGHT / 2.0);
+        return Math.abs(dx) < range && Math.abs(dy) < range * 2.0;
+    }
+
+    public double  getX()       { return x; }
+    public double  getY()       { return y; }
+    public String  getShopId()  { return shopId; }
+    public boolean hasShop()    { return shopId != null; }
 }

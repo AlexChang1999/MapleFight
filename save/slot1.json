@@ -1,0 +1,17 @@
+{
+  "name": "AlexChan",
+  "level": 2,
+  "exp": 150,
+  "expToNext": 200,
+  "str": 12,
+  "dex": 5,
+  "intel": 5,
+  "luk": 5,
+  "hp": 190,
+  "maxHp": 235,
+  "mp": 55,
+  "maxMp": 55,
+  "jobId": "none",
+  "gold": 0,
+  "mapId": "battle"
+}

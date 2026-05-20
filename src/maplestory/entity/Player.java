@@ -3,6 +3,7 @@ package maplestory.entity;
 import maplestory.core.Camera;
 import maplestory.item.Equipment;
 import maplestory.item.EquipSlot;
+import maplestory.item.Inventory;
 import maplestory.job.Job;
 import maplestory.job.Warrior;
 import maplestory.map.BaseMap;
@@ -101,6 +102,9 @@ public class Player {
 
     // ── 裝備欄（8 格）────────────────────────────────────────
     private final Map<EquipSlot, Equipment> equipments = new EnumMap<>(EquipSlot.class);
+
+    // ── 背包 ─────────────────────────────────────────────────
+    private final Inventory inventory = new Inventory();
 
     // ── 寵物欄（預留）────────────────────────────────────────
     @SuppressWarnings("unused")
@@ -309,9 +313,51 @@ public class Player {
         return true;
     }
 
-    /** 回復 HP（不超過 maxHp） */
-    public void healHp(int amount) {
+    /**
+     * 回復 HP（不超過 maxHp）。
+     * @return 實際回復量（可能因滿血而少於 amount）
+     */
+    public int healHp(int amount) {
+        int before = hp;
         hp = Math.min(maxHp, hp + amount);
+        return hp - before;
+    }
+
+    /**
+     * 回復 MP（不超過 maxMp）。
+     * @return 實際回復量
+     */
+    public int healMp(int amount) {
+        int before = mp;
+        mp = Math.min(maxMp, mp + amount);
+        return mp - before;
+    }
+
+    /**
+     * 從背包裝備欄位 index 取出並穿上裝備。
+     * 若該 slot 已有裝備，舊裝備放回背包（因為剛騰出一格，必定成功）。
+     * @return true 若成功裝備
+     */
+    public boolean equipFromInventory(int invIndex) {
+        Equipment e = inventory.removeEquipment(invIndex); // 從背包移除（騰出一格）
+        if (e == null) return false;
+        Equipment old = equipments.put(e.getSlot(), e);   // 穿上，取回舊裝備
+        if (old != null) inventory.addEquipment(old);      // 舊裝備放回背包（必定成功）
+        recalculateStats();
+        return true;
+    }
+
+    /**
+     * 脫下指定欄位的裝備，放回背包。
+     * @return true 若成功脫裝（背包有空間）
+     */
+    public boolean unequip(EquipSlot slot) {
+        Equipment e = equipments.get(slot);
+        if (e == null) return false;
+        if (!inventory.addEquipment(e)) return false; // 背包滿，無法脫裝
+        equipments.remove(slot);
+        recalculateStats();
+        return true;
     }
 
     /** 地圖切換時設定新位置 */
@@ -601,6 +647,7 @@ public class Player {
     }
 
     public Map<EquipSlot, Equipment> getEquipments() { return equipments; }
+    public Inventory getInventory() { return inventory; }
 
     // ── 角色名稱 & 金幣 ──────────────────────────────────────
     public String getName()          { return name; }
