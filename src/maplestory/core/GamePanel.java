@@ -28,6 +28,9 @@ public class GamePanel extends JPanel implements Runnable {
     public static final int GAME_HEIGHT   = 500;
     public static final int SCREEN_HEIGHT = GAME_HEIGHT + HUD_HEIGHT;
 
+    // ── 存檔資訊 ─────────────────────────────────────────────
+    private int saveSlot = 1; // 目前使用的存檔槽
+
     // ── 遊戲迴圈 ─────────────────────────────────────────────
     private static final int  FPS       = 60;
     private static final long TARGET_NS = 1_000_000_000L / FPS;
@@ -59,7 +62,12 @@ public class GamePanel extends JPanel implements Runnable {
     private String activePanel = null;
 
     // ─────────────────────────────────────────────────────────
-    public GamePanel() {
+    /**
+     * @param slot       存檔槽（1~3）
+     * @param playerName 新遊戲角色名（null = 從存檔讀取）
+     */
+    public GamePanel(int slot, String playerName) {
+        this.saveSlot = slot;
         setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
         setBackground(Color.BLACK);
         setFocusable(true);
@@ -73,6 +81,16 @@ public class GamePanel extends JPanel implements Runnable {
         player       = new Player(200, 350, camera);
         inputHandler = new InputHandler(player, keyBindings);
         addKeyListener(inputHandler);
+
+        // ── 存讀檔 ───────────────────────────────────────────
+        if (playerName != null) {
+            // 新遊戲：設定角色名稱，其餘使用預設值
+            player.setName(playerName);
+        } else {
+            // 繼續遊戲：從 JSON 讀取
+            String mapId = SaveManager.load(slot, player);
+            mapManager.switchMap(mapId, 200, 350, player);
+        }
 
         // ── 初始化 UI 面板 ───────────────────────────────────
         statusPanel  = new StatusPanel();
@@ -118,6 +136,14 @@ public class GamePanel extends JPanel implements Runnable {
                     default         -> {} // GAME 類由 InputHandler 處理
                 }
             }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                // F5 鍵存檔（固定快捷鍵，不透過 KeyBindingManager）
+                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_F5) {
+                    saveGame();
+                }
+            }
         });
 
         // ── 滑鼠事件：委派給 KeyBindingPanel ─────────────────
@@ -161,6 +187,21 @@ public class GamePanel extends JPanel implements Runnable {
         gameThread.start();
     }
 
+    /** 停止遊戲迴圈（返回標題畫面用） */
+    public void stopGameLoop() {
+        running = false;
+    }
+
+    /** 存檔（F5 觸發） */
+    private void saveGame() {
+        SaveManager.save(saveSlot, player, mapManager.getCurrentMap().getMapId());
+        showSaveNotice();
+    }
+
+    /** HUD 顯示「已存檔」提示（用 saveNoticeTimer 控制） */
+    private double saveNoticeTimer = 0;
+    private void showSaveNotice() { saveNoticeTimer = 2.0; }
+
     @Override
     public void run() {
         long lastTime = System.nanoTime();
@@ -185,6 +226,8 @@ public class GamePanel extends JPanel implements Runnable {
     private void update(double dt) {
         // 按鍵配置面板開著時，凍結遊戲邏輯（不凍結動畫）
         if ("keybind".equals(activePanel)) return;
+
+        if (saveNoticeTimer > 0) saveNoticeTimer -= dt;
 
         BaseMap currentMap = mapManager.getCurrentMap();
 
@@ -311,6 +354,19 @@ public class GamePanel extends JPanel implements Runnable {
         g.drawString("Lv." + player.getLevel() + "  " + player.getJobName(),
                      260, hudY + 25);
 
+        // 金幣
+        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
+        g.setColor(new Color(255, 215, 0));
+        g.drawString("G " + player.getGold(), 260, hudY + 56);
+
+        // 存檔提示（F5 存檔後顯示 2 秒）
+        if (saveNoticeTimer > 0) {
+            float alpha = (float) Math.min(1.0, saveNoticeTimer);
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
+            g.setColor(new Color(100, 255, 120, (int)(alpha * 220)));
+            g.drawString("✦ 存檔成功 (Slot " + saveSlot + ")", SCREEN_WIDTH / 2 - 70, hudY + 30);
+        }
+
         // 地圖名稱
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g.setColor(new Color(160, 160, 200));
@@ -318,7 +374,7 @@ public class GamePanel extends JPanel implements Runnable {
         if      (mapManager.isOnMap("village")) mapLabel = "新手村";
         else if (mapManager.isOnMap("arctic"))  mapLabel = "極地冰原";
         else                                    mapLabel = "冒險平原";
-        g.drawString(mapLabel, 260, hudY + 44);
+        g.drawString(mapLabel + "  [F5 存檔]", 260, hudY + 44);
 
         // 技能冷卻格（有職業且在戰鬥/冰原地圖才顯示）
         if (player.getJob() != null && !mapManager.isOnMap("village")) {

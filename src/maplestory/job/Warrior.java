@@ -18,8 +18,8 @@ public class Warrior extends Job {
         skills.add(new SkillShockwave());   // index 1 → W
     }
 
-    @Override
-    public String getDisplayName() { return "劍士"; }
+    @Override public String getDisplayName() { return "劍士"; }
+    @Override public String getJobId()       { return "warrior"; }
 
     /**
      * 被動：脫戰（timeSinceLastCombat >= 5 秒）且 HP 未滿時自動回血。

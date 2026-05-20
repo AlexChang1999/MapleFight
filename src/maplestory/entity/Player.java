@@ -78,6 +78,10 @@ public class Player {
     /** 距離上次攻擊 / 被攻擊的秒數（劍士被動回血判斷） */
     private double timeSinceLastCombat = 999;
 
+    // ── 角色基本資訊 ─────────────────────────────────────────
+    private String name = "新手";   // 玩家取名（顯示在腳下）
+    private int    gold = 0;        // 金幣
+
     // ── RPG 數值 ─────────────────────────────────────────────
     private int level          = 1;
     private int exp            = 0;
@@ -393,6 +397,18 @@ public class Player {
         g.fillRect(cx + 4  + legSwing, sy + 55, 10, 5);
 
         g.setStroke(new BasicStroke(1f));
+
+        // ── 角色名稱（腳下 4px，黑邊白字）────────────────────
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+        FontMetrics fm = g.getFontMetrics();
+        int nameW = fm.stringWidth(name);
+        int nameX = cx - nameW / 2;
+        int nameY = sy + HEIGHT + 14;
+        g.setColor(new Color(0, 0, 0, 180));
+        g.drawString(name, nameX - 1, nameY + 1);
+        g.drawString(name, nameX + 1, nameY + 1);
+        g.setColor(Color.WHITE);
+        g.drawString(name, nameX, nameY);
     }
 
     /**
@@ -585,4 +601,29 @@ public class Player {
     }
 
     public Map<EquipSlot, Equipment> getEquipments() { return equipments; }
+
+    // ── 角色名稱 & 金幣 ──────────────────────────────────────
+    public String getName()          { return name; }
+    public void   setName(String n)  { name = (n != null && !n.isBlank()) ? n.trim() : "新手"; }
+    public int    getGold()          { return gold; }
+    public void   gainGold(int g)    { gold = Math.max(0, gold + g); }
+    public boolean spendGold(int g)  {
+        if (gold < g) return false;
+        gold -= g; return true;
+    }
+
+    // ── 完整狀態 setter（存讀檔用）─────────────────────────
+    public void setLevel(int v)      { level = v; }
+    public void setExp(int v)        { exp = v; }
+    public void setExpToNextLevel(int v) { expToNextLevel = v; }
+    public void setStr(int v)        { str = v;   recalculateStats(); }
+    public void setDex(int v)        { dex = v; }
+    public void setIntel(int v)      { intel = v; recalculateStats(); }
+    public void setLuk(int v)        { luk = v; }
+    public void setHp(int v)         { hp = Math.min(v, maxHp); }
+    public void setMp(int v)         { mp = Math.min(v, maxMp); }
+    public void setMaxHp(int v)      { maxHp = v; }
+    public void setMaxMp(int v)      { maxMp = v; }
+    public void setJob(Job j)        { job = j; if (j != null) jobName = j.getDisplayName(); }
+    public void setGold(int v)       { gold = Math.max(0, v); }
 }

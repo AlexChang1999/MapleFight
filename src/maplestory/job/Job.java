@@ -64,4 +64,10 @@ public abstract class Job {
 
     /** 取得職業顯示名稱（子類別覆寫） */
     public abstract String getDisplayName();
+
+    /**
+     * 取得存檔用的職業 ID（子類別覆寫）。
+     * 例："warrior", "mage", "archer"
+     */
+    public abstract String getJobId();
 }
