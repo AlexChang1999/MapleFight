@@ -1,9 +1,11 @@
 package maplestory.core;
 
 import maplestory.entity.Monster;
+import maplestory.entity.MonsterType;
 import maplestory.entity.NPC;
 import maplestory.entity.Player;
 import maplestory.input.InputHandler;
+import maplestory.job.Skill;
 import maplestory.map.BaseMap;
 import maplestory.ui.EquipPanel;
 import maplestory.ui.SkillPanel;
@@ -59,10 +61,14 @@ public class GamePanel extends JPanel implements Runnable {
         inputHandler = new InputHandler(player);
         addKeyListener(inputHandler);
 
-        // 怪物（初始化在戰鬥地圖上）
-        monsters.add(new Monster(450,  300));
-        monsters.add(new Monster(850,  300));
-        monsters.add(new Monster(1200, 300));
+        // ── 戰鬥地圖怪物（3 史萊姆、2 野豬、2 蝙蝠）────────
+        monsters.add(new Monster( 450, 300, MonsterType.SLIME));
+        monsters.add(new Monster( 750, 300, MonsterType.SLIME));
+        monsters.add(new Monster(1050, 300, MonsterType.SLIME));
+        monsters.add(new Monster( 620, 290, MonsterType.BOAR));
+        monsters.add(new Monster(1280, 290, MonsterType.BOAR));
+        monsters.add(new Monster( 550, 200, MonsterType.BAT));   // 蝙蝠出生高度較高
+        monsters.add(new Monster(1100, 200, MonsterType.BAT));
 
         // UI 面板切換（S / K / E）
         addKeyListener(new KeyAdapter() {
@@ -72,7 +78,7 @@ public class GamePanel extends JPanel implements Runnable {
                     case KeyEvent.VK_S -> "status";
                     case KeyEvent.VK_K -> "skill";
                     case KeyEvent.VK_E -> "equip";
-                    default -> null;
+                    default            -> null;
                 };
                 if (target != null) {
                     activePanel = target.equals(activePanel) ? null : target;
@@ -95,7 +101,7 @@ public class GamePanel extends JPanel implements Runnable {
             long   now = System.nanoTime();
             double dt  = (now - lastTime) / 1_000_000_000.0;
             lastTime   = now;
-            if (dt > 0.05) dt = 0.05;
+            if (dt > 0.05) dt = 0.05; // 防止幀間隔過大
 
             update(dt);
             repaint();
@@ -112,7 +118,7 @@ public class GamePanel extends JPanel implements Runnable {
     private void update(double dt) {
         BaseMap currentMap = mapManager.getCurrentMap();
 
-        // 玩家更新（傳入 BaseMap）
+        // 玩家更新（含職業被動、技能冷卻）
         player.update(dt, currentMap);
 
         // 鏡頭跟隨
@@ -121,7 +127,13 @@ public class GamePanel extends JPanel implements Runnable {
         // 地圖切換偵測（傳送門）
         mapManager.update(dt, player);
 
-        // 怪物只在戰鬥地圖更新
+        // ── 技能輸入：Q / W ──────────────────────────────────
+        int pendingSkill = inputHandler.pollPendingSkill();
+        if (pendingSkill >= 0 && mapManager.isOnMap("battle")) {
+            player.useSkill(pendingSkill, monsters);
+        }
+
+        // ── 怪物更新（只在戰鬥地圖）──────────────────────────
         if (mapManager.isOnMap("battle")) {
             boolean isAttacking = player.isAttacking();
 
@@ -168,7 +180,7 @@ public class GamePanel extends JPanel implements Runnable {
     private void drawGameArea(Graphics2D g) {
         BaseMap currentMap = mapManager.getCurrentMap();
 
-        // 天空背景（先由地圖決定漸層）
+        // 天空漸層
         GradientPaint sky = new GradientPaint(
             0, 0,           new Color(100, 180, 240),
             0, GAME_HEIGHT, new Color(170, 220, 255)
@@ -176,13 +188,16 @@ public class GamePanel extends JPanel implements Runnable {
         g.setPaint(sky);
         g.fillRect(0, 0, SCREEN_WIDTH, GAME_HEIGHT);
 
-        // 地圖本身（背景 + 地形 + NPC + 傳送門）
+        // 地圖（背景 + 地形 + NPC + 傳送門）
         currentMap.draw(g, camera);
 
         // 怪物（只在戰鬥地圖顯示）
         if (mapManager.isOnMap("battle")) {
             for (Monster m : monsters) m.draw(g, camera);
         }
+
+        // 技能特效（在玩家前面渲染）
+        player.getJob().drawEffects(g, camera);
 
         // 玩家（最上層）
         player.draw(g, camera);
@@ -214,11 +229,16 @@ public class GamePanel extends JPanel implements Runnable {
         g.drawString("Lv." + player.getLevel() + "  " + player.getJobName(),
                      260, hudY + 25);
 
-        // 目前地圖名稱（小字）
+        // 目前地圖名稱
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g.setColor(new Color(160, 160, 200));
         String mapLabel = mapManager.isOnMap("village") ? "🏡 新手村" : "⚔ 冒險平原";
         g.drawString(mapLabel, 260, hudY + 44);
+
+        // 技能冷卻圖示（只在戰鬥地圖顯示）
+        if (mapManager.isOnMap("battle")) {
+            drawSkillSlots(g, hudY);
+        }
 
         // EXP 條
         int expY = SCREEN_HEIGHT - 12;
@@ -230,15 +250,68 @@ public class GamePanel extends JPanel implements Runnable {
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         g.drawString("EXP", 4, expY + 10);
 
-        // 快捷按鈕
+        // 快捷按鈕（右側）
         drawHudButton(g, "技能 [K]", SCREEN_WIDTH - 255, hudY + 20);
         drawHudButton(g, "裝備 [E]", SCREEN_WIDTH - 160, hudY + 20);
-        drawHudButton(g, "狀態 [S]", SCREEN_WIDTH - 65,  hudY + 20);
+        drawHudButton(g, "狀態 [S]", SCREEN_WIDTH -  65, hudY + 20);
 
         // 操作說明
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         g.setColor(new Color(150, 150, 180));
-        g.drawString("← → 移動  Space 跳躍  Z 攻擊", SCREEN_WIDTH - 255, hudY + 62);
+        g.drawString("← → 移動  Space 跳躍  Z 攻擊  Q 突刺  W 衝擊波",
+                     SCREEN_WIDTH - 265, hudY + 62);
+    }
+
+    /**
+     * 繪製技能冷卻格（Q / W）
+     * 在 HP/MP 條右側，EXP 條左方。
+     */
+    private void drawSkillSlots(Graphics2D g, int hudY) {
+        List<Skill> skills = player.getJob().getSkills();
+        int slotSize = 38;
+        int startX   = 430; // HUD 中段，位於等級文字與快捷按鈕之間
+        String[] keys = {"Q", "W"};
+
+        for (int i = 0; i < skills.size(); i++) {
+            Skill  s  = skills.get(i);
+            int    sx = startX + i * (slotSize + 6);
+            int    sy = hudY + (HUD_HEIGHT - slotSize) / 2 - 2;
+
+            // 底板
+            g.setColor(new Color(30, 30, 60));
+            g.fillRoundRect(sx, sy, slotSize, slotSize, 6, 6);
+
+            // 冷卻遮罩（由上往下填色表示剩餘冷卻）
+            double cdRatio = s.getCooldownRatio(); // 1.0=冷卻中, 0.0=好了
+            if (cdRatio > 0) {
+                g.setColor(new Color(0, 0, 0, 160));
+                int maskH = (int)(slotSize * cdRatio);
+                g.fillRect(sx, sy, slotSize, maskH);
+            }
+
+            // 技能名稱縮寫
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
+            g.setColor(cdRatio > 0 ? Color.GRAY : Color.WHITE);
+            FontMetrics fm = g.getFontMetrics();
+            String label = s.getName();
+            g.drawString(label, sx + (slotSize - fm.stringWidth(label)) / 2, sy + slotSize / 2 + 3);
+
+            // 邊框（可用時發光）
+            g.setStroke(new BasicStroke(1.5f));
+            g.setColor(cdRatio > 0 ? new Color(80, 80, 120) : new Color(120, 180, 255));
+            g.drawRoundRect(sx, sy, slotSize, slotSize, 6, 6);
+            g.setStroke(new BasicStroke(1f));
+
+            // 按鍵提示
+            g.setFont(new Font("Arial", Font.BOLD, 9));
+            g.setColor(new Color(200, 200, 200));
+            g.drawString("[" + keys[i] + "]", sx + 2, sy + slotSize - 3);
+
+            // MP 消耗
+            g.setFont(new Font("Arial", Font.PLAIN, 9));
+            g.setColor(new Color(100, 150, 255));
+            g.drawString(s.getMpCost() + "MP", sx + 2, sy + 11);
+        }
     }
 
     private void drawBar(Graphics2D g, int x, int y,

@@ -12,11 +12,24 @@ import java.awt.event.KeyEvent;
  * 按鍵配置：
  *   ← →     移動
  *   Space   跳躍
- *   Z       普通攻擊
+ *   Z       普通攻擊（交替劈砍 / 突刺）
+ *   Q       技能一：突刺（高傷害單體）
+ *   W       技能二：衝擊波（範圍嘲諷）
+ *
+ * 注意：Q / W 技能需要怪物列表才能計算傷害，
+ *       因此先存放在 pendingSkill 欄位，
+ *       由 GamePanel.update() 在每幀取出並執行。
  */
 public class InputHandler extends KeyAdapter {
 
     private final Player player;
+
+    /**
+     * 待執行的技能索引（-1 = 無）。
+     * InputHandler 只負責記錄「玩家想用哪個技能」，
+     * 實際帶入 monsters 的呼叫由 GamePanel 處理。
+     */
+    private int pendingSkill = -1;
 
     public InputHandler(Player player) {
         this.player = player;
@@ -29,7 +42,16 @@ public class InputHandler extends KeyAdapter {
             case KeyEvent.VK_RIGHT -> player.setMovingRight(true);
             case KeyEvent.VK_SPACE -> player.jump();
             case KeyEvent.VK_Z     -> player.attack();
+            case KeyEvent.VK_Q     -> pendingSkill = 0; // 突刺
+            case KeyEvent.VK_W     -> pendingSkill = 1; // 衝擊波
         }
+    }
+
+    /** GamePanel 每幀呼叫：取出待發技能並清除（-1 = 無） */
+    public int pollPendingSkill() {
+        int s = pendingSkill;
+        pendingSkill = -1;
+        return s;
     }
 
     @Override

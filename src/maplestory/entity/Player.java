@@ -3,6 +3,8 @@ package maplestory.entity;
 import maplestory.core.Camera;
 import maplestory.item.Equipment;
 import maplestory.item.EquipSlot;
+import maplestory.job.Job;
+import maplestory.job.Warrior;
 import maplestory.map.BaseMap;
 import maplestory.map.Platform;
 
@@ -13,17 +15,17 @@ import java.util.Map;
 
 /**
  * 玩家角色（火柴人）
- * Phase 7-11 更新：
- *   - 接受 BaseMap（支援地圖切換）
- *   - 靜待呼吸動畫
- *   - 走路手腳對向擺動
- *   - 攻擊三階段：蓄勢 → 揮擊 → 收勢
+ * 功能：
+ *   - BaseMap 解耦（支援地圖切換 + setPosition）
+ *   - 靜待呼吸 / 走路手腳對向擺動
+ *   - 雙段連擊：劈砍（Z 奇數次）、突刺（Z 偶數次）
  *   - 裝備系統（8 格，開局穿上預設裝備）
- *   - setPosition()（地圖切換用）
+ *   - 職業系統（Job 抽象層，預設劍士）
+ *   - 脫戰計時（timeSinceLastCombat）→ 劍士被動回血用
  */
 public class Player {
 
-    // ── 碰撞箱 ───────────────────────────────────────────────
+    // ── 碰撞箱（公開給技能類別使用） ─────────────────────────
     public static final int WIDTH  = 24;
     public static final int HEIGHT = 58;
 
@@ -33,28 +35,34 @@ public class Player {
     private static final double JUMP_FORCE = -520;
 
     // ── 攻擊常數 ─────────────────────────────────────────────
-    private static final double ATTACK_DURATION  = 0.45; // 完整動畫秒數
-    private static final double STRIKE_START     = 0.28; // 揮擊開始比例
-    private static final double STRIKE_END       = 0.65; // 揮擊結束比例
-    private static final int    ATTACK_RANGE     = 65;
-    private static final int    BASE_DAMAGE      = 25;
+    private static final double ATTACK_DURATION = 0.42; // 完整動畫秒數
+    private static final double STRIKE_START    = 0.28; // 揮擊開始比例
+    private static final double STRIKE_END      = 0.65; // 揮擊結束比例
+    private static final int    ATTACK_RANGE    = 65;
+    private static final int    BASE_DAMAGE     = 25;
 
     // ── 位置 / 速度 ──────────────────────────────────────────
     private double x, y;
     private double velX, velY;
 
     // ── 移動狀態 ─────────────────────────────────────────────
-    private boolean movingLeft, movingRight;
+    private boolean movingLeft  = false;
+    private boolean movingRight = false;
     private boolean onGround    = false;
     private boolean facingRight = true;
 
     // ── 攻擊狀態 ─────────────────────────────────────────────
-    private boolean attacking   = false;
-    private double  attackTimer = 0;
+    private boolean attacking        = false;
+    private double  attackTimer      = 0;
+    private int     attackComboIndex = 0; // 0=劈砍, 1=突刺（每次切換）
 
     // ── 動畫計時 ─────────────────────────────────────────────
-    private double walkAnim = 0; // 走路週期
-    private double idleTimer = 0; // 靜待呼吸週期（持續累加）
+    private double walkAnim  = 0; // 走路週期
+    private double idleTimer = 0; // 靜待呼吸週期
+
+    // ── 脫戰計時 ─────────────────────────────────────────────
+    /** 距離上次攻擊 / 被攻擊的秒數（劍士被動回血判斷） */
+    private double timeSinceLastCombat = 999;
 
     // ── RPG 數值 ─────────────────────────────────────────────
     private int level          = 1;
@@ -62,19 +70,21 @@ public class Player {
     private int expToNextLevel = 100;
 
     private int str   = 10;
-    private int dex   = 4;
-    private int intel = 4;
-    private int luk   = 4;
+    private int dex   =  4;
+    private int intel =  4;
+    private int luk   =  4;
 
     private int hp, maxHp;
     private int mp, maxMp;
 
-    private String jobName = "新手";
+    // ── 職業 ─────────────────────────────────────────────────
+    private final Job job;
 
     // ── 裝備欄（8 格）────────────────────────────────────────
     private final Map<EquipSlot, Equipment> equipments = new EnumMap<>(EquipSlot.class);
 
     // ── 寵物欄（預留）────────────────────────────────────────
+    @SuppressWarnings("unused")
     private boolean canHavePet = false;
 
     private final Camera camera;
@@ -92,7 +102,10 @@ public class Player {
         equipments.put(EquipSlot.GLOVES, Equipment.hempGloves());
         equipments.put(EquipSlot.BOOTS,  Equipment.hempBoots());
 
-        // HP / MP（包含裝備加成）
+        // 建立職業（劍士）
+        this.job = new Warrior();
+
+        // HP / MP（含裝備加成）
         recalculateStats();
         this.hp = maxHp;
         this.mp = maxMp;
@@ -103,12 +116,17 @@ public class Player {
         int hpBonus = equipments.values().stream().mapToInt(Equipment::getHpBonus).sum();
         int mpBonus = equipments.values().stream().mapToInt(Equipment::getMpBonus).sum();
         maxHp = 100 + str * 10 + hpBonus;
-        maxMp = 30  + intel * 5 + mpBonus;
+        maxMp =  30 + intel * 5 + mpBonus;
     }
 
-    // ── 每幀更新（接受 BaseMap，支援地圖切換）───────────────
+    // ─────────────────────────────────────────────────────────
+    // 每幀更新
+    // ─────────────────────────────────────────────────────────
     public void update(double dt, BaseMap map) {
         idleTimer += dt;
+
+        // 脫戰計時
+        timeSinceLastCombat += dt;
 
         // 水平移動
         velX = 0;
@@ -125,7 +143,7 @@ public class Player {
         x += velX * dt;
         y += velY * dt;
 
-        // 邊界
+        // 地圖邊界
         if (x < 0) x = 0;
         if (x > map.getMapWidth() - WIDTH) x = map.getMapWidth() - WIDTH;
 
@@ -147,37 +165,59 @@ public class Player {
             attackTimer -= dt;
             if (attackTimer <= 0) attacking = false;
         }
+
+        // 職業更新（被動 + 技能冷卻）
+        job.update(this, dt);
     }
 
-    // ── 跳躍 ─────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // 行動指令
+    // ─────────────────────────────────────────────────────────
+
     public void jump() {
         if (onGround) { velY = JUMP_FORCE; onGround = false; }
     }
 
-    // ── 普通攻擊 ─────────────────────────────────────────────
+    /**
+     * 普通攻擊：每次按 Z 切換連擊段數。
+     * attackComboIndex 0 = 劈砍（下劈），1 = 突刺（水平刺）
+     */
     public void attack() {
-        if (!attacking) { attacking = true; attackTimer = ATTACK_DURATION; }
+        if (!attacking) {
+            attacking        = true;
+            attackTimer      = ATTACK_DURATION;
+            attackComboIndex = 1 - attackComboIndex; // 0↔1 切換
+            timeSinceLastCombat = 0; // 重置脫戰計時
+        }
     }
 
-    /** 攻擊進度比例（0.0 = 剛開始，1.0 = 結束） */
+    /** 使用技能（含怪物列表，由 GamePanel 呼叫） */
+    public void useSkill(int index, List<Monster> monsters) {
+        job.useSkill(index, this, monsters);
+        timeSinceLastCombat = 0;
+    }
+
+    /** 攻擊進度比例 0.0（剛開始）~ 1.0（結束） */
     private double attackProgress() {
         return 1.0 - (attackTimer / ATTACK_DURATION);
     }
 
-    /** 只有在揮擊階段才能造成傷害 */
+    /** 只有在揮擊階段（STRIKE_START ~ STRIKE_END）才能傷害怪物 */
     public boolean isInStrikePhase() {
         if (!attacking) return false;
         double p = attackProgress();
         return p >= STRIKE_START && p <= STRIKE_END;
     }
 
-    /** 偵測揮擊階段內的怪物碰撞 */
+    /** 偵測揮擊階段內的怪物碰撞並造成傷害 */
     public void checkAttackHits(List<Monster> monsters) {
         if (!isInStrikePhase()) return;
         int atkX = facingRight ? (int) x + WIDTH : (int) x - ATTACK_RANGE;
         Rectangle box = new Rectangle(atkX, (int) y, ATTACK_RANGE, HEIGHT);
+
         int atkBonus = equipments.containsKey(EquipSlot.WEAPON)
                        ? equipments.get(EquipSlot.WEAPON).getAtkBonus() : 0;
+
         for (Monster m : monsters) {
             if (!m.isAlive() || m.isHitThisAttack()) continue;
             if (box.intersects(m.getBoundingBox())) {
@@ -185,65 +225,83 @@ public class Player {
                 m.setHitThisAttack(true);
             }
         }
+        timeSinceLastCombat = 0; // 命中後重置脫戰計時
     }
 
-    public void takeDamage(int dmg) { hp = Math.max(0, hp - dmg); }
+    public void takeDamage(int dmg) {
+        hp = Math.max(0, hp - dmg);
+        timeSinceLastCombat = 0; // 被打也算戰鬥狀態
+    }
+
+    /** 消耗 MP，不足時回傳 false */
+    public boolean consumeMp(int amount) {
+        if (mp < amount) return false;
+        mp -= amount;
+        return true;
+    }
+
+    /** 回復 HP（不超過 maxHp） */
+    public void healHp(int amount) {
+        hp = Math.min(maxHp, hp + amount);
+    }
 
     /** 地圖切換時設定新位置 */
     public void setPosition(double nx, double ny) {
         x = nx; y = ny; velX = 0; velY = 0;
     }
 
-    // ── 繪製（火柴人 + 裝備） ────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // 繪製
+    // ─────────────────────────────────────────────────────────
     public void draw(Graphics2D g, Camera camera) {
         int sx = (int)(x - camera.getOffsetX());
         int sy = (int)(y - camera.getOffsetY());
 
-        // ── 靜待呼吸偏移 ────────────────────────────────────
+        // 靜待呼吸偏移
         if (velX == 0 && onGround && !attacking) {
             sy += (int)(Math.sin(idleTimer * 1.6) * 2.0);
         }
 
         int cx = sx + WIDTH / 2;
 
-        // ── 攻擊範圍提示（半透明黃） ─────────────────────────
+        // 攻擊範圍提示（半透明黃）
         if (attacking) {
-            g.setColor(new Color(255, 255, 80, 55));
+            g.setColor(new Color(255, 255, 80, 50));
             int atkX = facingRight ? sx + WIDTH : sx - ATTACK_RANGE;
             g.fillRect(atkX, sy + 10, ATTACK_RANGE, HEIGHT - 10);
         }
 
         g.setStroke(new BasicStroke(2.2f));
 
-        // ── 取得裝備顏色 ────────────────────────────────────
-        Color topColor    = equipments.containsKey(EquipSlot.TOP)
-                            ? equipments.get(EquipSlot.TOP).getDisplayColor()    : Color.WHITE;
-        Color bottomColor = equipments.containsKey(EquipSlot.BOTTOM)
-                            ? equipments.get(EquipSlot.BOTTOM).getDisplayColor() : Color.WHITE;
-        Color gloveColor  = equipments.containsKey(EquipSlot.GLOVES)
-                            ? equipments.get(EquipSlot.GLOVES).getDisplayColor() : Color.WHITE;
-        Color bootColor   = equipments.containsKey(EquipSlot.BOOTS)
-                            ? equipments.get(EquipSlot.BOOTS).getDisplayColor()  : Color.WHITE;
+        // 取得裝備顏色
+        Color topColor    = equip(EquipSlot.TOP)    != null ? equip(EquipSlot.TOP).getDisplayColor()    : Color.WHITE;
+        Color bottomColor = equip(EquipSlot.BOTTOM) != null ? equip(EquipSlot.BOTTOM).getDisplayColor() : Color.WHITE;
+        Color gloveColor  = equip(EquipSlot.GLOVES) != null ? equip(EquipSlot.GLOVES).getDisplayColor() : Color.WHITE;
+        Color bootColor   = equip(EquipSlot.BOOTS)  != null ? equip(EquipSlot.BOOTS).getDisplayColor()  : Color.WHITE;
 
         // ── 頭 ───────────────────────────────────────────────
         g.setColor(Color.WHITE);
         g.drawOval(cx - 10, sy, 20, 20);
 
+        // 臉（眼睛）
+        int eyeDir = facingRight ? 3 : -3;
+        g.setColor(Color.BLACK);
+        g.fillOval(cx + eyeDir - 2, sy + 7, 3, 3);
+
         // ── 身體（上衣色）────────────────────────────────────
         g.setColor(topColor);
         g.drawLine(cx, sy + 20, cx, sy + 40);
 
-        // ── 手臂 + 攻擊三階段 ────────────────────────────────
+        // ── 手臂（含連擊動畫）────────────────────────────────
         drawArms(g, cx, sy, topColor, gloveColor);
 
         // ── 腳（下褲色，走路對向擺動）────────────────────────
         int legSwing = onGround && !attacking ? (int)(Math.sin(walkAnim) * 10) : 0;
-        // 左腳 / 右腳顏色
         g.setColor(bottomColor);
         g.drawLine(cx, sy + 40, cx - 8 - legSwing, sy + 58);
         g.drawLine(cx, sy + 40, cx + 8 + legSwing, sy + 58);
 
-        // ── 靴子（腳尖小矩形）───────────────────────────────
+        // ── 靴子 ─────────────────────────────────────────────
         g.setColor(bootColor);
         g.fillRect(cx - 14 - legSwing, sy + 55, 10, 5);
         g.fillRect(cx + 4  + legSwing, sy + 55, 10, 5);
@@ -252,18 +310,18 @@ public class Player {
     }
 
     /**
-     * 手臂繪製（含三階段攻擊動畫）
-     * 蓄勢(0~28%)→揮擊(28~65%)→收勢(65~100%)
+     * 手臂繪製：依 attackComboIndex 選擇動畫類型。
+     *   0 = 劈砍（由上往下斜劈）
+     *   1 = 突刺（水平向前刺）
      */
     private void drawArms(Graphics2D g, int cx, int sy,
-                           Color topColor, Color gloveColor) {
+                          Color topColor, Color gloveColor) {
         if (!attacking) {
-            // ── 普通走路手臂（與腳對向擺動）────────────────
+            // 普通走路手臂（與腳對向擺動）
             int armSwing = onGround ? (int)(Math.sin(walkAnim + Math.PI) * 8) : 0;
             g.setColor(topColor);
             g.drawLine(cx, sy + 26, cx - 12 - armSwing, sy + 38);
             g.drawLine(cx, sy + 26, cx + 12 + armSwing, sy + 38);
-            // 手套點
             g.setColor(gloveColor);
             g.fillOval(cx - 14 - armSwing, sy + 36, 6, 6);
             g.fillOval(cx + 10 + armSwing, sy + 36, 6, 6);
@@ -271,87 +329,167 @@ public class Player {
         }
 
         double prog = attackProgress(); // 0.0 ~ 1.0
+        int    dir  = facingRight ? 1 : -1;
 
-        // 方向因子：面右 +1，面左 -1
-        int dir = facingRight ? 1 : -1;
+        if (attackComboIndex == 0) {
+            drawSlashArms(g, cx, sy, dir, prog, topColor, gloveColor);
+        } else {
+            drawThrustArms(g, cx, sy, dir, prog, topColor, gloveColor);
+        }
+    }
 
-        int frontArmEndX, frontArmEndY; // 揮擊手（前手）終點
-        int backArmEndX,  backArmEndY;  // 後手終點
+    /**
+     * 劈砍動畫（0 段）：手臂從右後上方斜劈至左前下方。
+     * 蓄勢 → 舉高 → 大力下劈 → 收勢
+     */
+    private void drawSlashArms(Graphics2D g, int cx, int sy,
+                                int dir, double prog,
+                                Color topColor, Color gloveColor) {
+        int frontArmEndX, frontArmEndY;
+        int backArmEndX,  backArmEndY;
 
         if (prog < STRIKE_START) {
-            // ── 蓄勢：前手收回，後手往後拉 ─────────────────
-            double t = prog / STRIKE_START; // 0→1
-            frontArmEndX = cx + dir * (int)(-5 - 10 * t);
-            frontArmEndY = sy + 30 + (int)(5 * t);
-            backArmEndX  = cx - dir * (int)(8 + 6 * t);
+            // 蓄勢：前手舉高（右上）
+            double t = prog / STRIKE_START;
+            frontArmEndX = cx + dir * (int)(-4 + 8 * t);
+            frontArmEndY = sy + (int)(30 - 18 * t); // 往上舉
+            backArmEndX  = cx - dir * 10;
             backArmEndY  = sy + 34;
         } else if (prog < STRIKE_END) {
-            // ── 揮擊：前手快速甩出 ──────────────────────────
-            double t = (prog - STRIKE_START) / (STRIKE_END - STRIKE_START); // 0→1
-            frontArmEndX = cx + dir * (int)(15 + 18 * t);
-            frontArmEndY = sy + (int)(30 - 12 * t);
-            backArmEndX  = cx - dir * (int)(10);
+            // 揮擊：前手大弧度由高往低前方劈下
+            double t = (prog - STRIKE_START) / (STRIKE_END - STRIKE_START);
+            frontArmEndX = cx + dir * (int)(4 + 22 * t);
+            frontArmEndY = sy + (int)(12 + 34 * t); // 從高到低
+            backArmEndX  = cx - dir * 8;
             backArmEndY  = sy + 36;
         } else {
-            // ── 收勢：前手緩緩收回 ──────────────────────────
-            double t = (prog - STRIKE_END) / (1.0 - STRIKE_END); // 0→1
-            frontArmEndX = cx + dir * (int)(33 - 20 * t);
-            frontArmEndY = sy + (int)(18 + 15 * t);
-            backArmEndX  = cx - dir * (int)(10 - 3 * t);
+            // 收勢：前手回到腰間
+            double t = (prog - STRIKE_END) / (1.0 - STRIKE_END);
+            frontArmEndX = cx + dir * (int)(26 - 14 * t);
+            frontArmEndY = sy + (int)(46 - 10 * t);
+            backArmEndX  = cx - dir * (int)(8 - 3 * t);
             backArmEndY  = sy + 36;
         }
 
-        // 畫後手（上衣色）
+        // 後手
         g.setColor(topColor);
         g.drawLine(cx, sy + 26, backArmEndX, backArmEndY);
 
-        // 畫前手（揮擊色：亮橘色）
-        Color strikeColor = (prog >= STRIKE_START && prog <= STRIKE_END)
-                            ? new Color(255, 200, 80) : topColor;
-        g.setColor(strikeColor);
+        // 前手（揮擊時橘色）
+        boolean inStrike = prog >= STRIKE_START && prog <= STRIKE_END;
+        Color frontColor = inStrike ? new Color(255, 190, 60) : topColor;
+        g.setColor(frontColor);
         g.drawLine(cx, sy + 26, frontArmEndX, frontArmEndY);
 
-        // ── 武器（短劍）附在前手端 ──────────────────────────
-        if (equipments.containsKey(EquipSlot.WEAPON)) {
-            Equipment w = equipments.get(EquipSlot.WEAPON);
-            g.setColor(w.getDisplayColor());
-            g.setStroke(new BasicStroke(3f));
-            int swordLen = 22;
-            g.drawLine(frontArmEndX, frontArmEndY,
-                       frontArmEndX + dir * swordLen,
-                       frontArmEndY - 8);
-            // 劍柄（橫線）
-            g.setColor(new Color(180, 140, 60));
-            g.setStroke(new BasicStroke(2f));
-            g.drawLine(frontArmEndX - 3, frontArmEndY + 1,
-                       frontArmEndX + 3, frontArmEndY - 3);
-            g.setStroke(new BasicStroke(2.2f));
-        }
+        // 劍（斜劈時垂直偏多）
+        drawWeapon(g, frontArmEndX, frontArmEndY, dir, 18, -12);
 
-        // 手套
         g.setColor(gloveColor);
         g.fillOval(frontArmEndX - 3, frontArmEndY - 3, 6, 6);
     }
 
-    // ── Getter / Setter ──────────────────────────────────────
-    public void setMovingLeft(boolean v)  { movingLeft  = v; }
+    /**
+     * 突刺動畫（1 段）：手臂水平向前伸出，刺出長線。
+     * 蓄勢 → 縮手 → 快速水平刺出 → 收勢
+     */
+    private void drawThrustArms(Graphics2D g, int cx, int sy,
+                                 int dir, double prog,
+                                 Color topColor, Color gloveColor) {
+        int frontArmEndX, frontArmEndY;
+        int backArmEndX,  backArmEndY;
+
+        if (prog < STRIKE_START) {
+            // 蓄勢：前手往後收
+            double t = prog / STRIKE_START;
+            frontArmEndX = cx + dir * (int)(12 - 20 * t); // 往後拉
+            frontArmEndY = sy + 28;
+            backArmEndX  = cx - dir * (int)(8 + 5 * t);
+            backArmEndY  = sy + 34;
+        } else if (prog < STRIKE_END) {
+            // 刺出：手水平射出
+            double t = (prog - STRIKE_START) / (STRIKE_END - STRIKE_START);
+            frontArmEndX = cx + dir * (int)(-8 + 38 * t); // 快速向前
+            frontArmEndY = sy + 28;
+            backArmEndX  = cx - dir * 13;
+            backArmEndY  = sy + 36;
+        } else {
+            // 收勢：手臂收回一點
+            double t = (prog - STRIKE_END) / (1.0 - STRIKE_END);
+            frontArmEndX = cx + dir * (int)(30 - 12 * t);
+            frontArmEndY = sy + (int)(28 + 8 * t);
+            backArmEndX  = cx - dir * (int)(13 - 4 * t);
+            backArmEndY  = sy + 36;
+        }
+
+        // 後手
+        g.setColor(topColor);
+        g.drawLine(cx, sy + 26, backArmEndX, backArmEndY);
+
+        // 前手（揮擊時亮藍白）
+        boolean inStrike = prog >= STRIKE_START && prog <= STRIKE_END;
+        Color frontColor = inStrike ? new Color(160, 220, 255) : topColor;
+        g.setColor(frontColor);
+        g.drawLine(cx, sy + 26, frontArmEndX, frontArmEndY);
+
+        // 劍（突刺時水平延伸更長）
+        int swordExtX = inStrike ? 28 : 18;
+        drawWeapon(g, frontArmEndX, frontArmEndY, dir, swordExtX, -2);
+
+        g.setColor(gloveColor);
+        g.fillOval(frontArmEndX - 3, frontArmEndY - 3, 6, 6);
+    }
+
+    /** 在手端繪製武器 */
+    private void drawWeapon(Graphics2D g, int handX, int handY,
+                             int dir, int lenX, int lenY) {
+        Equipment w = equip(EquipSlot.WEAPON);
+        if (w == null) return;
+
+        g.setColor(w.getDisplayColor());
+        g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(handX, handY,
+                   handX + dir * lenX,
+                   handY + lenY);
+
+        // 劍柄橫線
+        g.setColor(new Color(180, 140, 60));
+        g.setStroke(new BasicStroke(2f));
+        g.drawLine(handX - 3, handY + 1, handX + 3, handY - 3);
+
+        g.setStroke(new BasicStroke(2.2f));
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 取得裝備（null 安全）
+    // ─────────────────────────────────────────────────────────
+    private Equipment equip(EquipSlot slot) {
+        return equipments.getOrDefault(slot, null);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Getter / Setter
+    // ─────────────────────────────────────────────────────────
+    public void setMovingLeft (boolean v) { movingLeft  = v; }
     public void setMovingRight(boolean v) { movingRight = v; }
 
-    public double  getX()             { return x; }
-    public double  getY()             { return y; }
-    public int     getHp()            { return hp; }
-    public int     getMaxHp()         { return maxHp; }
-    public int     getMp()            { return mp; }
-    public int     getMaxMp()         { return maxMp; }
-    public int     getLevel()         { return level; }
-    public String  getJobName()       { return jobName; }
-    public boolean isAttacking()      { return attacking; }
-    public int     getStr()           { return str; }
-    public int     getDex()           { return dex; }
-    public int     getIntel()         { return intel; }
-    public int     getLuk()           { return luk; }
-    public int     getExp()           { return exp; }
-    public int     getExpToNextLevel(){ return expToNextLevel; }
+    public double  getX()                  { return x; }
+    public double  getY()                  { return y; }
+    public int     getHp()                 { return hp; }
+    public int     getMaxHp()              { return maxHp; }
+    public int     getMp()                 { return mp; }
+    public int     getMaxMp()              { return maxMp; }
+    public int     getLevel()              { return level; }
+    public String  getJobName()            { return job.getDisplayName(); }
+    public boolean isAttacking()           { return attacking; }
+    public boolean isFacingRight()         { return facingRight; }
+    public int     getStr()                { return str; }
+    public int     getDex()                { return dex; }
+    public int     getIntel()              { return intel; }
+    public int     getLuk()                { return luk; }
+    public int     getExp()                { return exp; }
+    public int     getExpToNextLevel()     { return expToNextLevel; }
+    public double  getTimeSinceLastCombat(){ return timeSinceLastCombat; }
+    public Job     getJob()                { return job; }
 
     public double getExpRatio() {
         return expToNextLevel > 0 ? (double) exp / expToNextLevel : 0;
