@@ -23,18 +23,18 @@ public class GameMap extends BaseMap {
         buildMap();
         int groundY = GamePanel.GAME_HEIGHT - 40;
 
-        // 左側傳送門 → 回村莊
+        // 左側傳送門 → 回村莊（無等級限制）
         portals.add(new Portal(
             30, groundY - Portal.HEIGHT,
-            "village", 1180, groundY - 80,
-            "回村莊"
+            "village", 1440, groundY - 80,
+            "回村莊", 1
         ));
 
-        // 右側傳送門 → 極地冰原（需要 10 等以上才能前往也可留白，由 Portal 本身決定）
+        // 右側傳送門 → 極地冰原（需要 Lv.15）
         portals.add(new Portal(
             MAP_WIDTH - 68, groundY - Portal.HEIGHT,
             "arctic", 120, groundY - 90,
-            "極地冰原"
+            "極地冰原(Lv.15)", 15
         ));
     }
 
@@ -42,10 +42,8 @@ public class GameMap extends BaseMap {
     private void buildMap() {
         int gY = GamePanel.GAME_HEIGHT - 40; // 地面 Y 座標
 
-        // ── 地面（三段，中間有一個缺口製造變化感） ───────────
-        platforms.add(new Platform(   0, gY, 700, 40, new Color(80,  140, 60)));
-        platforms.add(new Platform( 720, gY, 700, 40, new Color(75,  130, 55)));
-        platforms.add(new Platform(1440, gY, 560, 40, new Color(80,  140, 60)));
+        // ── 地面（完整一條，消除缺口） ───────────────────────
+        platforms.add(new Platform(0, gY, MAP_WIDTH, 40, new Color(80, 140, 60)));
 
         // ── 中層浮台（棕色木頭感） ────────────────────────────
         platforms.add(new Platform( 150, gY - 110, 180, 18, new Color(140, 100, 55)));
@@ -67,9 +65,8 @@ public class GameMap extends BaseMap {
     // ── 繪製 ─────────────────────────────────────────────────
     public void draw(Graphics2D g, Camera camera) {
         drawBackground(g, camera);
-        for (Platform p : platforms) {
-            p.draw(g, camera);
-        }
+        for (Platform p : platforms) p.draw(g, camera);
+        for (Portal   p : portals)   p.draw(g, camera);
     }
 
     /**

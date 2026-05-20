@@ -38,10 +38,8 @@ public class NoviceMap3 extends BaseMap {
         Color wood   = new Color(148, 102, 54);
         Color dkWood = new Color(112, 78, 40);
 
-        // 地面
-        platforms.add(new Platform(   0, GROUND_Y, 758, 40, grass));
-        platforms.add(new Platform( 785, GROUND_Y, 712, 40, new Color(65, 138, 46)));
-        platforms.add(new Platform(1535, GROUND_Y, 665, 40, grass));
+        // 地面（完整一條，消除缺口）
+        platforms.add(new Platform(0, GROUND_Y, MAP_WIDTH, 40, grass));
 
         // 中層（七段，路線更複雜）
         platforms.add(new Platform( 118, GROUND_Y - 135, 168, 18, wood));
@@ -72,12 +70,12 @@ public class NoviceMap3 extends BaseMap {
         portals.add(new Portal(
             22, GROUND_Y - Portal.HEIGHT,
             "novice2", NoviceMap2.MAP_WIDTH - 68, GROUND_Y - 80,
-            "回二區"
+            "回二區", 1
         ));
         portals.add(new Portal(
             MAP_WIDTH - 68, GROUND_Y - Portal.HEIGHT,
             "battle", 150, GROUND_Y - 80,
-            "冒險平原"
+            "冒險平原(Lv.10)", 10
         ));
     }
 

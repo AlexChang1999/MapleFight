@@ -10,6 +10,8 @@ import maplestory.job.Skill;
 import maplestory.keybind.ActionType;
 import maplestory.keybind.KeyBindingManager;
 import maplestory.map.BaseMap;
+import maplestory.quest.QuestManager;
+import maplestory.ui.DialoguePanel;
 import maplestory.ui.EquipPanel;
 import maplestory.ui.InventoryPanel;
 import maplestory.ui.KeyBindingPanel;
@@ -73,9 +75,17 @@ public class GamePanel extends JPanel implements Runnable {
     private String activePanel = null;
 
     // ── NPC 互動 ─────────────────────────────────────────────
-    /** 目前玩家旁邊可互動的 NPC（null = 無） */
-    private NPC nearShopNpc = null;
+    /** 目前玩家旁邊可互動的商店 NPC（null = 無） */
+    private NPC nearShopNpc     = null;
+    /** 目前玩家旁邊可互動的對話 NPC（null = 無） */
+    private NPC nearDialogueNpc = null;
     private static final double NPC_INTERACT_RANGE = 80;
+
+    // ── 任務系統 ─────────────────────────────────────────────
+    private final QuestManager questManager = new QuestManager();
+
+    // ── 對話面板 ─────────────────────────────────────────────
+    private final DialoguePanel dialoguePanel = new DialoguePanel();
 
     // ── 掉落物 ───────────────────────────────────────────────
     private final List<DropItem> drops = new ArrayList<>();
@@ -113,7 +123,7 @@ public class GamePanel extends JPanel implements Runnable {
         if (playerName != null) {
             player.setName(playerName);
         } else {
-            String mapId = SaveManager.load(slot, player);
+            String mapId = SaveManager.load(slot, player, questManager);
             mapManager.switchMap(mapId, 200, 350, player);
             camera.snapTo(player.getX(), player.getY(), mapManager.getCurrentMap().getMapWidth());
         }

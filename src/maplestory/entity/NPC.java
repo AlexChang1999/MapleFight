@@ -18,25 +18,33 @@ public class NPC {
     private final String  name;
     private final Color   bodyColor;
     private final boolean facingRight;
-    private final String  shopId;   // null = 無商店；"item" / "weapon" 等
+    private final String  shopId;      // null = 無商店；"item" / "weapon" 等
+    private final String  dialogueId;  // null = 無對話；"elder" 等
 
-    private double idleTimer   = 0;   // 靜待動畫計時
-    private boolean showHint   = false; // 是否顯示「按 F 購物」提示
+    private double  idleTimer = 0;   // 靜待動畫計時
+    private boolean showHint  = false; // 是否顯示互動提示
 
-    /** 無商店的 NPC */
+    /** 無商店、無對話的 NPC */
     public NPC(double x, double y, String name, Color bodyColor, boolean facingRight) {
-        this(x, y, name, bodyColor, facingRight, null);
+        this(x, y, name, bodyColor, facingRight, null, null);
     }
 
-    /** 有商店的 NPC */
+    /** 有商店的 NPC（無對話） */
     public NPC(double x, double y, String name, Color bodyColor, boolean facingRight,
                String shopId) {
+        this(x, y, name, bodyColor, facingRight, shopId, null);
+    }
+
+    /** 完整建構子 */
+    public NPC(double x, double y, String name, Color bodyColor, boolean facingRight,
+               String shopId, String dialogueId) {
         this.x           = x;
         this.y           = y;
         this.name        = name;
         this.bodyColor   = bodyColor;
         this.facingRight = facingRight;
         this.shopId      = shopId;
+        this.dialogueId  = dialogueId;
     }
 
     public void update(double dt) {
@@ -53,9 +61,10 @@ public class NPC {
 
         int cx = sx + WIDTH / 2;
 
-        // ── 互動提示（有商店且玩家接近時）────────────────────
-        if (showHint && shopId != null) {
-            drawInteractHint(g, cx, sy - 30);
+        // ── 互動提示（有商店或有對話且玩家接近時）────────────
+        if (showHint && (shopId != null || dialogueId != null)) {
+            String hintText = (shopId != null) ? "按 [F] 購物" : "按 [F] 對話";
+            drawInteractHint(g, cx, sy - 30, hintText);
         }
 
         // ── 名稱標籤 ─────────────────────────────────────────
@@ -89,9 +98,8 @@ public class NPC {
         g.setStroke(new BasicStroke(1f));
     }
 
-    /** 按 F 互動提示（黃色氣泡） */
-    private void drawInteractHint(Graphics2D g, int cx, int hintBottom) {
-        String text = "按 [F] 購物";
+    /** 互動提示氣泡（黃色） */
+    private void drawInteractHint(Graphics2D g, int cx, int hintBottom, String text) {
         g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
         FontMetrics fm = g.getFontMetrics();
         int tw = fm.stringWidth(text);
@@ -99,12 +107,10 @@ public class NPC {
         int bx = cx - bw / 2;
         int by = hintBottom - bh;
 
-        // 黃色氣泡
         g.setColor(new Color(200, 175, 30, 210));
         g.fillRoundRect(bx, by, bw, bh, 5, 5);
         g.setColor(new Color(255, 230, 80));
         g.drawRoundRect(bx, by, bw, bh, 5, 5);
-        // 文字
         g.setColor(new Color(30, 20, 0));
         g.drawString(text, cx - tw / 2, hintBottom - 3);
     }
@@ -141,8 +147,12 @@ public class NPC {
         return Math.abs(dx) < range && Math.abs(dy) < range * 2.0;
     }
 
-    public double  getX()       { return x; }
-    public double  getY()       { return y; }
-    public String  getShopId()  { return shopId; }
-    public boolean hasShop()    { return shopId != null; }
+    public double  getX()           { return x; }
+    public double  getY()           { return y; }
+    public String  getShopId()      { return shopId; }
+    public boolean hasShop()        { return shopId != null; }
+    public String  getDialogueId()  { return dialogueId; }
+    public boolean hasDialogue()    { return dialogueId != null; }
+    /** NPC 是否可互動（有商店或有對話） */
+    public boolean isInteractable() { return shopId != null || dialogueId != null; }
 }

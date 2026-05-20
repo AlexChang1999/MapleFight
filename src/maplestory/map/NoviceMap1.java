@@ -38,10 +38,8 @@ public class NoviceMap1 extends BaseMap {
         Color wood   = new Color(145, 102, 56);
         Color dkWood = new Color(118, 82, 44);
 
-        // 地面（略有缺口）
-        platforms.add(new Platform(   0, GROUND_Y, 810, 40, grass));
-        platforms.add(new Platform( 835, GROUND_Y, 590, 40, new Color(65, 145, 50)));
-        platforms.add(new Platform(1460, GROUND_Y, 340, 40, grass));
+        // 地面（完整一條，消除缺口）
+        platforms.add(new Platform(0, GROUND_Y, MAP_WIDTH, 40, grass));
 
         // 中層木台
         platforms.add(new Platform( 200, GROUND_Y - 118, 165, 18, wood));
@@ -65,13 +63,13 @@ public class NoviceMap1 extends BaseMap {
     private void buildPortals() {
         portals.add(new Portal(
             22, GROUND_Y - Portal.HEIGHT,
-            "village", VillageMap.MAP_WIDTH - 130, GROUND_Y - 80,
-            "回新手村"
+            "village", 80, GROUND_Y - 80,
+            "回新手村", 1
         ));
         portals.add(new Portal(
             MAP_WIDTH - 68, GROUND_Y - Portal.HEIGHT,
             "novice2", 70, GROUND_Y - 80,
-            "前往二區"
+            "前往二區(Lv.3)", 3
         ));
     }
 

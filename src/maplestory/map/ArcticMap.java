@@ -44,7 +44,7 @@ public class ArcticMap extends BaseMap {
         portals.add(new Portal(
             30, gY - Portal.HEIGHT,
             "battle", 1700, gY - 100,
-            "回冒險平原"
+            "回冒險平原", 1
         ));
     }
 

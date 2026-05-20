@@ -198,11 +198,16 @@ public class Monster {
         tryAttack(player);
     }
 
-    /** 共用攻擊邏輯（冰系額外套用緩速效果） */
+    /**
+     * 共用攻擊邏輯：使用精確矩形碰撞（Y 軸必須重疊才算，跟玩家碰撞盒一致）。
+     * 冰系額外套用緩速效果。
+     */
     private void tryAttack(Player player) {
-        double distX   = player.getX() - x;
-        double distAbs = Math.abs(distX);
-        if (distAbs < ATTACK_RANGE && attackCooldown <= 0) {
+        if (attackCooldown > 0) return;
+        Rectangle atkBox = new Rectangle((int) x, (int) y, width, height);
+        Rectangle plBox  = new Rectangle(
+            (int) player.getX(), (int) player.getY(), Player.WIDTH, Player.HEIGHT);
+        if (atkBox.intersects(plBox)) {
             player.takeDamage(atk);
             if (type.iceType) player.applySlow(2.5, 0.5); // 冰系緩速
             attackCooldown = ATTACK_CD;
