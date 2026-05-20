@@ -1,9 +1,12 @@
 package maplestory.core;
 
 import maplestory.entity.Player;
-import maplestory.map.BaseMap;
 import maplestory.map.ArcticMap;
+import maplestory.map.BaseMap;
 import maplestory.map.GameMap;
+import maplestory.map.NoviceMap1;
+import maplestory.map.NoviceMap2;
+import maplestory.map.NoviceMap3;
 import maplestory.map.Portal;
 import maplestory.map.VillageMap;
 
@@ -27,6 +30,9 @@ public class MapManager {
 
     public MapManager() {
         maps.put("village", new VillageMap());
+        maps.put("novice1", new NoviceMap1());
+        maps.put("novice2", new NoviceMap2());
+        maps.put("novice3", new NoviceMap3());
         maps.put("battle",  new GameMap());
         maps.put("arctic",  new ArcticMap());
         currentMap = maps.get("village"); // ← 遊戲從村莊開始

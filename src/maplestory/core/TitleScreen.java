@@ -73,6 +73,21 @@ public class TitleScreen extends JPanel {
         t.start();
     }
 
+    // ── 縮放輔助 ─────────────────────────────────────────────
+
+    /** 目前縮放比例（等比，維持 800x580 邏輯解析度） */
+    private double getScale() {
+        return Math.min((double) getWidth() / W, (double) getHeight() / H);
+    }
+    private int getTransX() { return (getWidth()  - (int)(W * getScale())) / 2; }
+    private int getTransY() { return (getHeight() - (int)(H * getScale())) / 2; }
+
+    /** 將畫面（螢幕）座標轉換為邏輯座標 */
+    private Point toLogical(int sx, int sy) {
+        double s = getScale();
+        return new Point((int)((sx - getTransX()) / s), (int)((sy - getTransY()) / s));
+    }
+
     // ── 繪製 ─────────────────────────────────────────────────
     @Override
     protected void paintComponent(Graphics g0) {
@@ -80,6 +95,15 @@ public class TitleScreen extends JPanel {
         Graphics2D g = (Graphics2D) g0;
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        // 黑色 letterbox 背景
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, getWidth(), getHeight());
+
+        // 套用等比縮放 + 置中
+        double scale = getScale();
+        g.translate(getTransX(), getTransY());
+        g.scale(scale, scale);
 
         drawBackground(g);
         drawTitle(g);
@@ -289,8 +313,9 @@ public class TitleScreen extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                int slot = slotAt(e.getX(), e.getY());
-                int del  = delBtnAt(e.getX(), e.getY());
+                Point lp = toLogical(e.getX(), e.getY());
+                int slot = slotAt(lp.x, lp.y);
+                int del  = delBtnAt(lp.x, lp.y);
 
                 if (del >= 0) {
                     // 確認刪除
@@ -330,8 +355,9 @@ public class TitleScreen extends JPanel {
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                hoveredSlot = slotAt(e.getX(), e.getY());
-                hoveredDel  = delBtnAt(e.getX(), e.getY());
+                Point lp = toLogical(e.getX(), e.getY());
+                hoveredSlot = slotAt(lp.x, lp.y);
+                hoveredDel  = delBtnAt(lp.x, lp.y);
                 setCursor(hoveredSlot >= 0 || hoveredDel >= 0
                           ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
                           : Cursor.getDefaultCursor());

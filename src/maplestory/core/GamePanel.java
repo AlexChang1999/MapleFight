@@ -11,9 +11,11 @@ import maplestory.keybind.KeyBindingManager;
 import maplestory.map.BaseMap;
 import maplestory.ui.EquipPanel;
 import maplestory.ui.KeyBindingPanel;
+import maplestory.ui.PauseMenu;
 import maplestory.ui.SkillPanel;
 import maplestory.ui.StatusPanel;
 
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import java.awt.*;
 import java.awt.event.*;
@@ -22,14 +24,15 @@ import java.util.List;
 
 public class GamePanel extends JPanel implements Runnable {
 
-    // ── 視窗尺寸常數 ──────────────────────────────────────────
+    // ── 邏輯解析度（固定，不隨視窗縮放改變） ─────────────────
     public static final int SCREEN_WIDTH  = 800;
     public static final int HUD_HEIGHT    = 80;
     public static final int GAME_HEIGHT   = 500;
     public static final int SCREEN_HEIGHT = GAME_HEIGHT + HUD_HEIGHT;
 
     // ── 存檔資訊 ─────────────────────────────────────────────
-    private int saveSlot = 1; // 目前使用的存檔槽
+    private final int      saveSlot;
+    private final Runnable returnToTitleCallback; // ESC 選單「回主畫面」用
 
     // ── 遊戲迴圈 ─────────────────────────────────────────────
     private static final int  FPS       = 60;
@@ -42,70 +45,93 @@ public class GamePanel extends JPanel implements Runnable {
     private final MapManager        mapManager;
     private final Camera            camera;
     private final InputHandler      inputHandler;
-    private final KeyBindingManager keyBindings;   // 按鍵綁定資料層（共用）
+    private final KeyBindingManager keyBindings;
 
-    // ── 怪物（各地圖分開管理）───────────────────────────────────
-    private final List<Monster> monsters       = new ArrayList<>(); // 冒險平原
-    private final List<Monster> arcticMonsters = new ArrayList<>(); // 極地冰原
+    // ── 怪物（各地圖獨立）───────────────────────────────────
+    private final List<Monster> novice1Monsters = new ArrayList<>();
+    private final List<Monster> novice2Monsters = new ArrayList<>();
+    private final List<Monster> novice3Monsters = new ArrayList<>();
+    private final List<Monster> battleMonsters  = new ArrayList<>();
+    private final List<Monster> arcticMonsters  = new ArrayList<>();
     private boolean prevAttacking = false;
+
+    // ── 暫停選單 ─────────────────────────────────────────────
+    private boolean paused = false;
+    private final PauseMenu pauseMenu = new PauseMenu();
 
     // ── UI 面板 ───────────────────────────────────────────────
     private final StatusPanel     statusPanel;
     private final SkillPanel      skillPanel  = new SkillPanel();
     private final EquipPanel      equipPanel  = new EquipPanel();
     private final KeyBindingPanel keybindPanel;
-
-    /**
-     * 目前顯示的面板（null = 無）。
-     * 可選值："status" | "skill" | "equip" | "keybind"
-     */
+    /** 目前顯示的面板（null = 無）。可選值："status"|"skill"|"equip"|"keybind" */
     private String activePanel = null;
 
     // ─────────────────────────────────────────────────────────
     /**
-     * @param slot       存檔槽（1~3）
-     * @param playerName 新遊戲角色名（null = 從存檔讀取）
+     * @param slot             存檔槽（1~3）
+     * @param playerName       新遊戲角色名（null = 從存檔讀取）
+     * @param returnToTitle    ESC 選單回主畫面的回呼
      */
-    public GamePanel(int slot, String playerName) {
-        this.saveSlot = slot;
-        setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
+    public GamePanel(int slot, String playerName, Runnable returnToTitle) {
+        this.saveSlot              = slot;
+        this.returnToTitleCallback = returnToTitle;
+
         setBackground(Color.BLACK);
         setFocusable(true);
 
-        // ── 初始化按鍵系統 ───────────────────────────────────
-        keyBindings  = new KeyBindingManager();
+        // ── 按鍵系統（先讀取存檔配置）────────────────────────
+        keyBindings = new KeyBindingManager();
+        keyBindings.loadFromFile(); // 讀取上次的按鍵設定
 
-        // ── 初始化核心物件 ───────────────────────────────────
-        camera       = new Camera(SCREEN_WIDTH, GAME_HEIGHT);
-        mapManager   = new MapManager();
-        player       = new Player(200, 350, camera);
+        // ── 核心物件 ─────────────────────────────────────────
+        camera     = new Camera(SCREEN_WIDTH, GAME_HEIGHT);
+        mapManager = new MapManager();
+        player     = new Player(200, 350, camera);
+
         inputHandler = new InputHandler(player, keyBindings);
         addKeyListener(inputHandler);
 
         // ── 存讀檔 ───────────────────────────────────────────
         if (playerName != null) {
-            // 新遊戲：設定角色名稱，其餘使用預設值
             player.setName(playerName);
         } else {
-            // 繼續遊戲：從 JSON 讀取
             String mapId = SaveManager.load(slot, player);
             mapManager.switchMap(mapId, 200, 350, player);
+            camera.snapTo(player.getX(), player.getY(), mapManager.getCurrentMap().getMapWidth());
         }
 
-        // ── 初始化 UI 面板 ───────────────────────────────────
+        // ── UI 面板 ──────────────────────────────────────────
         statusPanel  = new StatusPanel();
         keybindPanel = new KeyBindingPanel(keyBindings);
 
-        // ── 冒險平原怪物（3 史萊姆、2 野豬、2 蝙蝠）────────
-        monsters.add(new Monster( 450, 300, MonsterType.SLIME));
-        monsters.add(new Monster( 750, 300, MonsterType.SLIME));
-        monsters.add(new Monster(1050, 300, MonsterType.SLIME));
-        monsters.add(new Monster( 620, 290, MonsterType.BOAR));
-        monsters.add(new Monster(1280, 290, MonsterType.BOAR));
-        monsters.add(new Monster( 550, 200, MonsterType.BAT));
-        monsters.add(new Monster(1100, 200, MonsterType.BAT));
+        // ── 怪物初始化：新手森林一區（史萊姆 x3）────────────
+        novice1Monsters.add(new Monster( 420, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 780, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1200, 300, MonsterType.SLIME));
 
-        // ── 極地冰原怪物（3 冰晶史萊姆、2 極地熊、2 冰蝠）──
+        // ── 新手森林二區（史萊姆 x2 + 蝙蝠 x2）────────────
+        novice2Monsters.add(new Monster( 400, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 980, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 560, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1350, 200, MonsterType.BAT));
+
+        // ── 新手森林三區（野豬 x2 + 蝙蝠 x2）────────────────
+        novice3Monsters.add(new Monster( 520, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster(1200, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster( 680, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1550, 200, MonsterType.BAT));
+
+        // ── 冒險平原（史萊姆 x3 + 野豬 x2 + 蝙蝠 x2）───────
+        battleMonsters.add(new Monster( 450, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 750, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1050, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 620, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1280, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster( 550, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1100, 200, MonsterType.BAT));
+
+        // ── 極地冰原（冰晶史萊姆 x3 + 極地熊 x2 + 冰蝠 x2）
         arcticMonsters.add(new Monster( 400, 300, MonsterType.ICE_SLIME));
         arcticMonsters.add(new Monster( 900, 300, MonsterType.ICE_SLIME));
         arcticMonsters.add(new Monster(1600, 300, MonsterType.ICE_SLIME));
@@ -114,17 +140,27 @@ public class GamePanel extends JPanel implements Runnable {
         arcticMonsters.add(new Monster( 600, 200, MonsterType.ICE_BAT));
         arcticMonsters.add(new Monster(1400, 200, MonsterType.ICE_BAT));
 
-        // ── 鍵盤監聽：UI 介面開關 ────────────────────────────
-        // 按下任何鍵時，先查 KeyBindingManager 是否是 UI 動作
+        // ── 鍵盤監聽：UI 面板 + ESC + F5 ────────────────────
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                ActionType action = keyBindings.getAction(e.getKeyCode());
+                int kc = e.getKeyCode();
+
+                // ESC：特殊處理（優先於其他面板）
+                if (kc == KeyEvent.VK_ESCAPE) {
+                    handleEsc();
+                    return;
+                }
+                // 暫停中不處理其他 UI 按鍵
+                if (paused) return;
+
+                ActionType action = keyBindings.getAction(kc);
                 if (action == null) return;
 
-                // 如果按鍵配置面板開著，任何 UI 動作都關掉它
+                // 按鍵配置面板開著時，任何 UI 動作都關閉它
                 if ("keybind".equals(activePanel)) {
                     activePanel = null;
+                    keyBindings.saveToFile(); // 關閉鍵盤配置面板時自動存檔
                     return;
                 }
 
@@ -133,51 +169,125 @@ public class GamePanel extends JPanel implements Runnable {
                     case UI_SKILL   -> togglePanel("skill");
                     case UI_EQUIP   -> togglePanel("equip");
                     case UI_KEYBIND -> togglePanel("keybind");
-                    default         -> {} // GAME 類由 InputHandler 處理
+                    default         -> {}
                 }
             }
 
             @Override
             public void keyReleased(KeyEvent e) {
-                // F5 鍵存檔（固定快捷鍵，不透過 KeyBindingManager）
-                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_F5) {
+                if (e.getKeyCode() == KeyEvent.VK_F5 && !paused) {
                     saveGame();
                 }
             }
         });
 
-        // ── 滑鼠事件：委派給 KeyBindingPanel ─────────────────
+        // ── 滑鼠事件（KeyBindingPanel 拖曳 + 暫停選單點擊）──
         addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if ("keybind".equals(activePanel))
-                    keybindPanel.mousePressed(e.getX(), e.getY());
+            @Override public void mousePressed(MouseEvent e) {
+                Point lp = toLogical(e.getX(), e.getY());
+                if (paused) {
+                    handlePauseMenuClick(lp.x, lp.y);
+                } else if ("keybind".equals(activePanel)) {
+                    keybindPanel.mousePressed(lp.x, lp.y);
+                }
             }
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if ("keybind".equals(activePanel))
-                    keybindPanel.mouseReleased(e.getX(), e.getY());
+            @Override public void mouseReleased(MouseEvent e) {
+                Point lp = toLogical(e.getX(), e.getY());
+                if (!paused && "keybind".equals(activePanel)) {
+                    keybindPanel.mouseReleased(lp.x, lp.y);
+                }
             }
         });
         addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if ("keybind".equals(activePanel))
-                    keybindPanel.mouseDragged(e.getX(), e.getY());
+            @Override public void mouseDragged(MouseEvent e) {
+                Point lp = toLogical(e.getX(), e.getY());
+                if (!paused && "keybind".equals(activePanel)) {
+                    keybindPanel.mouseDragged(lp.x, lp.y);
+                }
+            }
+            @Override public void mouseMoved(MouseEvent e) {
+                Point lp = toLogical(e.getX(), e.getY());
+                if (paused) pauseMenu.updateHover(lp.x, lp.y);
             }
         });
     }
 
-    /** 切換面板：再按一次就關掉 */
+    // ── 縮放輔助 ─────────────────────────────────────────────
+
+    /** 目前視窗等比縮放比例 */
+    private double getScale() {
+        int pw = getWidth(),  ph = getHeight();
+        if (pw <= 0 || ph <= 0) return 1.0;
+        return Math.min((double) pw / SCREEN_WIDTH, (double) ph / SCREEN_HEIGHT);
+    }
+    private int getTransX() { return (getWidth()  - (int)(SCREEN_WIDTH  * getScale())) / 2; }
+    private int getTransY() { return (getHeight() - (int)(SCREEN_HEIGHT * getScale())) / 2; }
+
+    /** 螢幕座標 → 邏輯座標（800x580 空間） */
+    private Point toLogical(int sx, int sy) {
+        double s = getScale();
+        return new Point((int)((sx - getTransX()) / s), (int)((sy - getTransY()) / s));
+    }
+
+    // ── ESC 邏輯 ─────────────────────────────────────────────
+
+    private void handleEsc() {
+        if (activePanel != null) {
+            // 先關閉目前面板
+            if ("keybind".equals(activePanel)) keyBindings.saveToFile();
+            activePanel = null;
+        } else {
+            paused = !paused;
+        }
+    }
+
+    /** 暫停選單點擊處理 */
+    private void handlePauseMenuClick(int lx, int ly) {
+        PauseMenu.Action action = pauseMenu.hit(lx, ly);
+        switch (action) {
+            case RESUME       -> paused = false;
+            case SAVE         -> { saveGame(); paused = false; }
+            case DELETE_SAVE  -> handleDeleteSave();
+            case RETURN_TITLE -> {
+                paused = false;
+                returnToTitleCallback.run();
+            }
+            case EXIT         -> System.exit(0);
+            default           -> {}
+        }
+    }
+
+    /** 刪除當前存檔並返回主畫面 */
+    private void handleDeleteSave() {
+        int choice = JOptionPane.showConfirmDialog(
+            this,
+            "確定要刪除「" + player.getName() + "」的存檔嗎？\n此操作無法復原。",
+            "刪除存檔確認",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+        if (choice == JOptionPane.YES_OPTION) {
+            SaveManager.delete(saveSlot);
+            paused = false;
+            returnToTitleCallback.run();
+        }
+    }
+
+    /** 切換面板：再按一次關閉 */
     private void togglePanel(String name) {
         activePanel = name.equals(activePanel) ? null : name;
     }
 
     /** 根據目前地圖回傳對應的怪物列表 */
     private List<Monster> currentMonsters() {
-        if (mapManager.isOnMap("arctic")) return arcticMonsters;
-        if (mapManager.isOnMap("battle")) return monsters;
-        return java.util.Collections.emptyList();
+        return switch (mapManager.getCurrentMap().getMapId()) {
+            case "novice1" -> novice1Monsters;
+            case "novice2" -> novice2Monsters;
+            case "novice3" -> novice3Monsters;
+            case "battle"  -> battleMonsters;
+            case "arctic"  -> arcticMonsters;
+            default        -> java.util.Collections.emptyList();
+        };
     }
 
     // ── 遊戲迴圈 ─────────────────────────────────────────────
@@ -187,18 +297,14 @@ public class GamePanel extends JPanel implements Runnable {
         gameThread.start();
     }
 
-    /** 停止遊戲迴圈（返回標題畫面用） */
-    public void stopGameLoop() {
-        running = false;
-    }
+    public void stopGameLoop() { running = false; }
 
-    /** 存檔（F5 觸發） */
     private void saveGame() {
         SaveManager.save(saveSlot, player, mapManager.getCurrentMap().getMapId());
+        keyBindings.saveToFile(); // 同時存按鍵設定
         showSaveNotice();
     }
 
-    /** HUD 顯示「已存檔」提示（用 saveNoticeTimer 控制） */
     private double saveNoticeTimer = 0;
     private void showSaveNotice() { saveNoticeTimer = 2.0; }
 
@@ -224,33 +330,38 @@ public class GamePanel extends JPanel implements Runnable {
 
     // ── 每幀更新 ─────────────────────────────────────────────
     private void update(double dt) {
-        // 按鍵配置面板開著時，凍結遊戲邏輯（不凍結動畫）
+        // 暫停選單動畫仍更新（呼吸效果），遊戲邏輯凍結
+        if (paused) {
+            pauseMenu.update(dt);
+            return;
+        }
+        // 按鍵配置面板開著時，凍結遊戲邏輯
         if ("keybind".equals(activePanel)) return;
 
         if (saveNoticeTimer > 0) saveNoticeTimer -= dt;
 
         BaseMap currentMap = mapManager.getCurrentMap();
-
-        // 玩家（含職業被動、技能冷卻）
         player.update(dt, currentMap);
-
-        // 鏡頭跟隨
         camera.update(player.getX(), player.getY(), currentMap.getMapWidth());
 
         // 地圖切換（傳送門）
         mapManager.update(dt, player);
+        if (mapManager.justSwitched()) {
+            // 瞬間跳鏡頭，不 lerp
+            camera.snapTo(player.getX(), player.getY(),
+                          mapManager.getCurrentMap().getMapWidth());
+        }
 
-        // 技能輸入（Q / W 由 InputHandler 存入 pendingSkill）
+        // 技能輸入
         List<Monster> curMonsters = currentMonsters();
         int pendingSkill = inputHandler.pollPendingSkill();
         if (pendingSkill >= 0 && !curMonsters.isEmpty()) {
             player.useSkill(pendingSkill, curMonsters);
         }
 
-        // 怪物更新（冒險平原 or 極地冰原）
+        // 怪物更新
         if (!curMonsters.isEmpty()) {
             boolean isAttacking = player.isAttacking();
-
             if (!isAttacking && prevAttacking) {
                 for (Monster m : curMonsters) m.setHitThisAttack(false);
             }
@@ -259,10 +370,7 @@ public class GamePanel extends JPanel implements Runnable {
 
             for (Monster m : curMonsters) {
                 m.update(dt, currentMap, player);
-                // 怪物剛死亡時發放 EXP（one-shot flag）
-                if (m.pollJustDied()) {
-                    player.gainExp(m.getExpReward());
-                }
+                if (m.pollJustDied()) player.gainExp(m.getExpReward());
             }
         } else {
             prevAttacking = false;
@@ -277,6 +385,19 @@ public class GamePanel extends JPanel implements Runnable {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
+
+        int pw = getWidth(), ph = getHeight();
+        double scale = getScale();
+        int tx = getTransX(), ty = getTransY();
+
+        // 黑色 letterbox
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(0, 0, pw, ph);
+
+        // 套用縮放 transform（邏輯座標 800x580）
+        g2d.translate(tx, ty);
+        g2d.scale(scale, scale);
+
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                              RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
@@ -286,25 +407,29 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.setClip(0, 0, SCREEN_WIDTH, GAME_HEIGHT);
         drawGameArea(g2d);
 
-        // HUD（移除裁剪後繪製）
+        // HUD（解除裁剪後繪製）
         g2d.setClip(null);
         drawHUD(g2d);
 
-        // UI 面板（最上層，可超過裁剪範圍）
+        // UI 面板（最上層）
         switch (activePanel == null ? "" : activePanel) {
             case "status"  -> statusPanel.draw(g2d, player);
             case "skill"   -> skillPanel.draw(g2d);
             case "equip"   -> equipPanel.draw(g2d);
             case "keybind" -> keybindPanel.draw(g2d);
         }
+
+        // 暫停選單（最頂層）
+        if (paused) pauseMenu.draw(g2d);
     }
 
     /** 繪製遊戲世界 */
     private void drawGameArea(Graphics2D g) {
         BaseMap currentMap = mapManager.getCurrentMap();
 
-        // 天空漸層（極地地圖自己畫夜空，此處跳過）
-        if (!mapManager.isOnMap("arctic")) {
+        // 天空漸層（極地地圖自己畫夜空，novice3 畫傍晚，各 novice 地圖也自繪天空）
+        String mapId = currentMap.getMapId();
+        if (!mapId.equals("arctic") && !mapId.startsWith("novice")) {
             GradientPaint sky = new GradientPaint(
                 0, 0,           new Color(100, 180, 240),
                 0, GAME_HEIGHT, new Color(170, 220, 255)
@@ -313,18 +438,14 @@ public class GamePanel extends JPanel implements Runnable {
             g.fillRect(0, 0, SCREEN_WIDTH, GAME_HEIGHT);
         }
 
-        // 地圖（背景 + 地形 + NPC + 傳送門）
         currentMap.draw(g, camera);
 
-        // 怪物（冒險平原 or 極地冰原）
         for (Monster m : currentMonsters()) m.draw(g, camera);
 
-        // 技能特效（在怪物和玩家之間的層次，僅有職業時繪製）
         if (player.getJob() != null) {
             player.getJob().drawEffects(g, camera);
         }
 
-        // 玩家（最上層）
         player.draw(g, camera);
     }
 
@@ -338,12 +459,9 @@ public class GamePanel extends JPanel implements Runnable {
         g.setColor(new Color(60, 60, 120));
         g.drawLine(0, hudY, SCREEN_WIDTH, hudY);
 
-        // HP 條
         drawBar(g, 10, hudY + 10, "HP",
                 player.getHp(), player.getMaxHp(),
                 new Color(180, 30, 30), new Color(220, 60, 60));
-
-        // MP 條
         drawBar(g, 10, hudY + 36, "MP",
                 player.getMp(), player.getMaxMp(),
                 new Color(20, 40, 140), new Color(60, 110, 220));
@@ -359,24 +477,22 @@ public class GamePanel extends JPanel implements Runnable {
         g.setColor(new Color(255, 215, 0));
         g.drawString("G " + player.getGold(), 260, hudY + 56);
 
-        // 存檔提示（F5 存檔後顯示 2 秒）
+        // 存檔提示
         if (saveNoticeTimer > 0) {
             float alpha = (float) Math.min(1.0, saveNoticeTimer);
             g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
             g.setColor(new Color(100, 255, 120, (int)(alpha * 220)));
-            g.drawString("✦ 存檔成功 (Slot " + saveSlot + ")", SCREEN_WIDTH / 2 - 70, hudY + 30);
+            g.drawString("存檔成功 (Slot " + saveSlot + ")",
+                         SCREEN_WIDTH / 2 - 68, hudY + 30);
         }
 
-        // 地圖名稱
+        // 地圖名稱（從 mapId 動態解析）
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g.setColor(new Color(160, 160, 200));
-        String mapLabel;
-        if      (mapManager.isOnMap("village")) mapLabel = "新手村";
-        else if (mapManager.isOnMap("arctic"))  mapLabel = "極地冰原";
-        else                                    mapLabel = "冒險平原";
-        g.drawString(mapLabel + "  [F5 存檔]", 260, hudY + 44);
+        String mapLabel = mapName(mapManager.getCurrentMap().getMapId());
+        g.drawString(mapLabel + "  [F5 存檔]  [ESC 選單]", 260, hudY + 44);
 
-        // 技能冷卻格（有職業且在戰鬥/冰原地圖才顯示）
+        // 技能冷卻格
         if (player.getJob() != null && !mapManager.isOnMap("village")) {
             drawSkillSlots(g, hudY);
         }
@@ -391,7 +507,7 @@ public class GamePanel extends JPanel implements Runnable {
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         g.drawString("EXP", 4, expY + 10);
 
-        // 快捷按鈕（右側）—— 從 KeyBindingManager 動態讀取目前綁定
+        // 快捷按鈕（右側）
         drawHudButton(g, "技能 [" + getBoundKeyName(ActionType.UI_SKILL)  + "]",
                       SCREEN_WIDTH - 255, hudY + 20);
         drawHudButton(g, "裝備 [" + getBoundKeyName(ActionType.UI_EQUIP)  + "]",
@@ -399,31 +515,40 @@ public class GamePanel extends JPanel implements Runnable {
         drawHudButton(g, "狀態 [" + getBoundKeyName(ActionType.UI_STATUS) + "]",
                       SCREEN_WIDTH -  65, hudY + 20);
 
-        // 操作說明（動態顯示目前按鍵）
+        // 操作說明
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         g.setColor(new Color(150, 150, 180));
-        g.drawString("移動: " + getBoundKeyName(ActionType.MOVE_LEFT)  + "/"
-                              + getBoundKeyName(ActionType.MOVE_RIGHT)
-                   + "  跳: " + getBoundKeyName(ActionType.JUMP)
-                   + "  攻: " + getBoundKeyName(ActionType.ATTACK)
-                   + "  Q技: " + getBoundKeyName(ActionType.SKILL_0)
-                   + "  W技: " + getBoundKeyName(ActionType.SKILL_1)
-                   + "  按鍵設定[" + getBoundKeyName(ActionType.UI_KEYBIND) + "]",
+        g.drawString("移:" + getBoundKeyName(ActionType.MOVE_LEFT)
+                         + "/" + getBoundKeyName(ActionType.MOVE_RIGHT)
+                   + " 跳:" + getBoundKeyName(ActionType.JUMP)
+                   + " 攻:" + getBoundKeyName(ActionType.ATTACK)
+                   + " Q技:" + getBoundKeyName(ActionType.SKILL_0)
+                   + " W技:" + getBoundKeyName(ActionType.SKILL_1)
+                   + " 按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "]",
                    SCREEN_WIDTH - 410, hudY + 62);
     }
 
-    /** 取得某動作目前綁定的鍵名（沒綁回傳 "-"） */
+    private String mapName(String mapId) {
+        return switch (mapId) {
+            case "village" -> "新手村";
+            case "novice1" -> "新手森林一區";
+            case "novice2" -> "新手森林二區";
+            case "novice3" -> "新手森林三區";
+            case "battle"  -> "冒險平原";
+            case "arctic"  -> "極地冰原";
+            default        -> mapId;
+        };
+    }
+
     private String getBoundKeyName(ActionType action) {
         Integer kc = keyBindings.getKeyFor(action);
         return kc != null ? KeyBindingManager.keyName(kc) : "-";
     }
 
-    /** 繪製技能冷卻格（HUD 中段，僅在有職業時呼叫） */
     private void drawSkillSlots(Graphics2D g, int hudY) {
         if (player.getJob() == null) return;
         List<Skill> skills = player.getJob().getSkills();
-        int slotSize = 38;
-        int startX   = 430;
+        int slotSize = 38, startX = 430;
         String[] actions = {
             getBoundKeyName(ActionType.SKILL_0),
             getBoundKeyName(ActionType.SKILL_1)
@@ -434,18 +559,15 @@ public class GamePanel extends JPanel implements Runnable {
             int   sx = startX + i * (slotSize + 6);
             int   sy = hudY + (HUD_HEIGHT - slotSize) / 2 - 2;
 
-            // 底板
             g.setColor(new Color(30, 30, 60));
             g.fillRoundRect(sx, sy, slotSize, slotSize, 6, 6);
 
-            // 冷卻遮罩
             double cdRatio = s.getCooldownRatio();
             if (cdRatio > 0) {
                 g.setColor(new Color(0, 0, 0, 160));
                 g.fillRect(sx, sy, slotSize, (int)(slotSize * cdRatio));
             }
 
-            // 技能名稱縮寫
             g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
             g.setColor(cdRatio > 0 ? Color.GRAY : Color.WHITE);
             FontMetrics fm = g.getFontMetrics();
@@ -453,18 +575,15 @@ public class GamePanel extends JPanel implements Runnable {
             g.drawString(label, sx + (slotSize - fm.stringWidth(label)) / 2,
                          sy + slotSize / 2 + 3);
 
-            // 邊框
             g.setStroke(new BasicStroke(1.5f));
             g.setColor(cdRatio > 0 ? new Color(80, 80, 120) : new Color(120, 180, 255));
             g.drawRoundRect(sx, sy, slotSize, slotSize, 6, 6);
             g.setStroke(new BasicStroke(1f));
 
-            // 動態按鍵提示
             g.setFont(new Font("Arial", Font.BOLD, 9));
             g.setColor(new Color(200, 200, 200));
             g.drawString("[" + actions[i] + "]", sx + 2, sy + slotSize - 3);
 
-            // MP 消耗
             g.setFont(new Font("Arial", Font.PLAIN, 9));
             g.setColor(new Color(100, 150, 255));
             g.drawString(s.getMpCost() + "MP", sx + 2, sy + 11);

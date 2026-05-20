@@ -48,6 +48,17 @@ public class Camera {
         if (offsetY < 0)                         offsetY = 0;
     }
 
+    /**
+     * 瞬間跳到目標位置（地圖切換時呼叫，避免 lerp 滑動）。
+     */
+    public void snapTo(double playerX, double playerY, int mapWidth) {
+        offsetX = playerX - screenWidth / 3.0;
+        offsetY = playerY - screenHeight * 0.55;
+        if (offsetX < 0)                      offsetX = 0;
+        if (offsetX > mapWidth - screenWidth) offsetX = mapWidth - screenWidth;
+        if (offsetY < 0)                      offsetY = 0;
+    }
+
     public double getOffsetX() { return offsetX; }
     public double getOffsetY() { return offsetY; }
 }

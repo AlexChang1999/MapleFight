@@ -1,6 +1,10 @@
 package maplestory.keybind;
 
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -94,6 +98,60 @@ public class KeyBindingManager {
     /** 取得所有綁定（唯讀，給 UI 顯示用） */
     public Map<Integer, ActionType> getAll() {
         return Collections.unmodifiableMap(fwd);
+    }
+
+    // ── 存讀檔 ───────────────────────────────────────────────
+    private static final String BINDINGS_FILE = "save/keybindings.json";
+
+    /**
+     * 將目前按鍵配置存到 save/keybindings.json。
+     * 格式：{ "MOVE_LEFT": 37, "JUMP": 32, ... }
+     */
+    public void saveToFile() {
+        try {
+            Files.createDirectories(Paths.get("save"));
+            StringBuilder sb = new StringBuilder("{\n");
+            boolean first = true;
+            for (Map.Entry<ActionType, Integer> e : rev.entrySet()) {
+                if (!first) sb.append(",\n");
+                sb.append("  \"").append(e.getKey().name()).append("\": ").append(e.getValue());
+                first = false;
+            }
+            sb.append("\n}");
+            Files.writeString(Paths.get(BINDINGS_FILE), sb.toString(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            System.err.println("[KeyBindingManager] 存檔失敗：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 從 save/keybindings.json 讀取按鍵配置。
+     * 若檔案不存在，保持預設配置。
+     */
+    public void loadFromFile() {
+        if (!Files.exists(Paths.get(BINDINGS_FILE))) return;
+        try {
+            String json = Files.readString(Paths.get(BINDINGS_FILE), StandardCharsets.UTF_8);
+            // 簡單解析（只支援本系統產生的單層 JSON）
+            json = json.trim();
+            if (json.startsWith("{")) json = json.substring(1);
+            if (json.endsWith("}"))   json = json.substring(0, json.length() - 1);
+            for (String line : json.split(",\\s*\n|,\n")) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                int colon = line.indexOf(':');
+                if (colon < 0) continue;
+                String actionName = line.substring(0, colon).trim().replace("\"", "");
+                String keyStr     = line.substring(colon + 1).trim();
+                try {
+                    ActionType action = ActionType.valueOf(actionName);
+                    int keyCode = Integer.parseInt(keyStr);
+                    bind(keyCode, action);
+                } catch (Exception ignored) { /* 未知 key 跳過 */ }
+            }
+        } catch (IOException e) {
+            System.err.println("[KeyBindingManager] 讀取失敗：" + e.getMessage());
+        }
     }
 
     /**

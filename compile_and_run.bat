@@ -1,7 +1,8 @@
 @echo off
-cd /d D:\MapleGame
+cd /d H:\MapleGame
 
 if not exist out mkdir out
+if not exist save mkdir save
 
 echo Compiling...
 dir /s /b src\*.java > sources.txt
