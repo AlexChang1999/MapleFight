@@ -2,6 +2,7 @@ package maplestory.core;
 
 import maplestory.entity.Player;
 import maplestory.map.BaseMap;
+import maplestory.map.ArcticMap;
 import maplestory.map.GameMap;
 import maplestory.map.Portal;
 import maplestory.map.VillageMap;
@@ -27,6 +28,7 @@ public class MapManager {
     public MapManager() {
         maps.put("village", new VillageMap());
         maps.put("battle",  new GameMap());
+        maps.put("arctic",  new ArcticMap());
         currentMap = maps.get("village"); // ← 遊戲從村莊開始
     }
 

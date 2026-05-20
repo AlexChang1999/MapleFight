@@ -21,12 +21,20 @@ public class GameMap extends BaseMap {
 
     public GameMap() {
         buildMap();
-        // 左側傳送門 → 回村莊，玩家出生在村莊右側傳送門旁
         int groundY = GamePanel.GAME_HEIGHT - 40;
+
+        // 左側傳送門 → 回村莊
         portals.add(new Portal(
             30, groundY - Portal.HEIGHT,
             "village", 1180, groundY - 80,
             "回村莊"
+        ));
+
+        // 右側傳送門 → 極地冰原（需要 10 等以上才能前往也可留白，由 Portal 本身決定）
+        portals.add(new Portal(
+            MAP_WIDTH - 68, groundY - Portal.HEIGHT,
+            "arctic", 120, groundY - 90,
+            "極地冰原"
         ));
     }
 

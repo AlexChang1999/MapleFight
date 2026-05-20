@@ -41,8 +41,9 @@ public class GamePanel extends JPanel implements Runnable {
     private final InputHandler      inputHandler;
     private final KeyBindingManager keyBindings;   // 按鍵綁定資料層（共用）
 
-    // ── 怪物（只在戰鬥地圖出現）────────────────────────────────
-    private final List<Monster> monsters = new ArrayList<>();
+    // ── 怪物（各地圖分開管理）───────────────────────────────────
+    private final List<Monster> monsters       = new ArrayList<>(); // 冒險平原
+    private final List<Monster> arcticMonsters = new ArrayList<>(); // 極地冰原
     private boolean prevAttacking = false;
 
     // ── UI 面板 ───────────────────────────────────────────────
@@ -77,7 +78,7 @@ public class GamePanel extends JPanel implements Runnable {
         statusPanel  = new StatusPanel();
         keybindPanel = new KeyBindingPanel(keyBindings);
 
-        // ── 怪物（3 史萊姆、2 野豬、2 蝙蝠）────────────────
+        // ── 冒險平原怪物（3 史萊姆、2 野豬、2 蝙蝠）────────
         monsters.add(new Monster( 450, 300, MonsterType.SLIME));
         monsters.add(new Monster( 750, 300, MonsterType.SLIME));
         monsters.add(new Monster(1050, 300, MonsterType.SLIME));
@@ -85,6 +86,15 @@ public class GamePanel extends JPanel implements Runnable {
         monsters.add(new Monster(1280, 290, MonsterType.BOAR));
         monsters.add(new Monster( 550, 200, MonsterType.BAT));
         monsters.add(new Monster(1100, 200, MonsterType.BAT));
+
+        // ── 極地冰原怪物（3 冰晶史萊姆、2 極地熊、2 冰蝠）──
+        arcticMonsters.add(new Monster( 400, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster( 900, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1600, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster( 700, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(1900, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster( 600, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(1400, 200, MonsterType.ICE_BAT));
 
         // ── 鍵盤監聽：UI 介面開關 ────────────────────────────
         // 按下任何鍵時，先查 KeyBindingManager 是否是 UI 動作
@@ -137,6 +147,13 @@ public class GamePanel extends JPanel implements Runnable {
         activePanel = name.equals(activePanel) ? null : name;
     }
 
+    /** 根據目前地圖回傳對應的怪物列表 */
+    private List<Monster> currentMonsters() {
+        if (mapManager.isOnMap("arctic")) return arcticMonsters;
+        if (mapManager.isOnMap("battle")) return monsters;
+        return java.util.Collections.emptyList();
+    }
+
     // ── 遊戲迴圈 ─────────────────────────────────────────────
     public void startGameLoop() {
         running    = true;
@@ -181,22 +198,31 @@ public class GamePanel extends JPanel implements Runnable {
         mapManager.update(dt, player);
 
         // 技能輸入（Q / W 由 InputHandler 存入 pendingSkill）
+        List<Monster> curMonsters = currentMonsters();
         int pendingSkill = inputHandler.pollPendingSkill();
-        if (pendingSkill >= 0 && mapManager.isOnMap("battle")) {
-            player.useSkill(pendingSkill, monsters);
+        if (pendingSkill >= 0 && !curMonsters.isEmpty()) {
+            player.useSkill(pendingSkill, curMonsters);
         }
 
-        // 怪物（只在戰鬥地圖）
-        if (mapManager.isOnMap("battle")) {
+        // 怪物更新（冒險平原 or 極地冰原）
+        if (!curMonsters.isEmpty()) {
             boolean isAttacking = player.isAttacking();
 
             if (!isAttacking && prevAttacking) {
-                for (Monster m : monsters) m.setHitThisAttack(false);
+                for (Monster m : curMonsters) m.setHitThisAttack(false);
             }
-            if (isAttacking) player.checkAttackHits(monsters);
+            if (isAttacking) player.checkAttackHits(curMonsters);
             prevAttacking = isAttacking;
 
-            for (Monster m : monsters) m.update(dt, currentMap, player);
+            for (Monster m : curMonsters) {
+                m.update(dt, currentMap, player);
+                // 怪物剛死亡時發放 EXP（one-shot flag）
+                if (m.pollJustDied()) {
+                    player.gainExp(m.getExpReward());
+                }
+            }
+        } else {
+            prevAttacking = false;
         }
 
         // NPC 更新
@@ -234,24 +260,26 @@ public class GamePanel extends JPanel implements Runnable {
     private void drawGameArea(Graphics2D g) {
         BaseMap currentMap = mapManager.getCurrentMap();
 
-        // 天空漸層
-        GradientPaint sky = new GradientPaint(
-            0, 0,           new Color(100, 180, 240),
-            0, GAME_HEIGHT, new Color(170, 220, 255)
-        );
-        g.setPaint(sky);
-        g.fillRect(0, 0, SCREEN_WIDTH, GAME_HEIGHT);
+        // 天空漸層（極地地圖自己畫夜空，此處跳過）
+        if (!mapManager.isOnMap("arctic")) {
+            GradientPaint sky = new GradientPaint(
+                0, 0,           new Color(100, 180, 240),
+                0, GAME_HEIGHT, new Color(170, 220, 255)
+            );
+            g.setPaint(sky);
+            g.fillRect(0, 0, SCREEN_WIDTH, GAME_HEIGHT);
+        }
 
         // 地圖（背景 + 地形 + NPC + 傳送門）
         currentMap.draw(g, camera);
 
-        // 怪物（只在戰鬥地圖）
-        if (mapManager.isOnMap("battle")) {
-            for (Monster m : monsters) m.draw(g, camera);
-        }
+        // 怪物（冒險平原 or 極地冰原）
+        for (Monster m : currentMonsters()) m.draw(g, camera);
 
-        // 技能特效（在怪物和玩家之間的層次）
-        player.getJob().drawEffects(g, camera);
+        // 技能特效（在怪物和玩家之間的層次，僅有職業時繪製）
+        if (player.getJob() != null) {
+            player.getJob().drawEffects(g, camera);
+        }
 
         // 玩家（最上層）
         player.draw(g, camera);
@@ -286,11 +314,16 @@ public class GamePanel extends JPanel implements Runnable {
         // 地圖名稱
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g.setColor(new Color(160, 160, 200));
-        String mapLabel = mapManager.isOnMap("village") ? "🏡 新手村" : "⚔ 冒險平原";
+        String mapLabel;
+        if      (mapManager.isOnMap("village")) mapLabel = "新手村";
+        else if (mapManager.isOnMap("arctic"))  mapLabel = "極地冰原";
+        else                                    mapLabel = "冒險平原";
         g.drawString(mapLabel, 260, hudY + 44);
 
-        // 技能冷卻格（戰鬥地圖才顯示）
-        if (mapManager.isOnMap("battle")) drawSkillSlots(g, hudY);
+        // 技能冷卻格（有職業且在戰鬥/冰原地圖才顯示）
+        if (player.getJob() != null && !mapManager.isOnMap("village")) {
+            drawSkillSlots(g, hudY);
+        }
 
         // EXP 條
         int expY = SCREEN_HEIGHT - 12;
@@ -329,8 +362,9 @@ public class GamePanel extends JPanel implements Runnable {
         return kc != null ? KeyBindingManager.keyName(kc) : "-";
     }
 
-    /** 繪製技能冷卻格（HUD 中段） */
+    /** 繪製技能冷卻格（HUD 中段，僅在有職業時呼叫） */
     private void drawSkillSlots(Graphics2D g, int hudY) {
+        if (player.getJob() == null) return;
         List<Skill> skills = player.getJob().getSkills();
         int slotSize = 38;
         int startX   = 430;

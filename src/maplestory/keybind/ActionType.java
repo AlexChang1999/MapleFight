@@ -18,6 +18,10 @@ public enum ActionType {
     MOVE_RIGHT("向右移動",   Category.GAME,  new Color(100, 160, 255)),
     JUMP      ("跳躍",       Category.GAME,  new Color( 80, 210, 255)),
 
+    // ── 移動（延伸） ─────────────────────────────────────────
+    CLIMB_UP  ("向上攀爬",   Category.GAME,  new Color( 80, 215, 200)),
+    CLIMB_DOWN("向下蹲伏",   Category.GAME,  new Color( 80, 215, 200)),
+
     // ── 戰鬥 ─────────────────────────────────────────────────
     ATTACK    ("普通攻擊",   Category.GAME,  new Color(255, 200, 60)),
     SKILL_0   ("技能：突刺", Category.GAME,  new Color(180,  90, 255)),

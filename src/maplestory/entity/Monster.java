@@ -53,6 +53,9 @@ public class Monster {
     private boolean taunted    = false;
     private double  tauntTimer = 0;
 
+    // ── EXP 掉落（一次性讀取） ────────────────────────────────
+    private boolean justDied = false;
+
     // ── 野豬專屬：衝刺 ───────────────────────────────────────
     private boolean boarCharging    = false;
     private double  boarChargeTimer = 0;
@@ -176,12 +179,13 @@ public class Monster {
         tryAttack(player);
     }
 
-    /** 共用攻擊邏輯 */
+    /** 共用攻擊邏輯（冰系額外套用緩速效果） */
     private void tryAttack(Player player) {
         double distX   = player.getX() - x;
         double distAbs = Math.abs(distX);
         if (distAbs < ATTACK_RANGE && attackCooldown <= 0) {
             player.takeDamage(atk);
+            if (type.iceType) player.applySlow(2.5, 0.5); // 冰系緩速
             attackCooldown = ATTACK_CD;
         }
     }
@@ -210,6 +214,7 @@ public class Monster {
             hp         = 0;
             alive      = false;
             deathTimer = 1.2;
+            justDied   = true; // 讓 GamePanel 讀取 EXP
         }
     }
 
@@ -228,9 +233,12 @@ public class Monster {
         }
 
         switch (type) {
-            case SLIME -> drawSlime(g, camera);
-            case BOAR  -> drawBoar (g, camera);
-            case BAT   -> drawBat  (g, camera);
+            case SLIME      -> drawSlime(g, camera);
+            case BOAR       -> drawBoar (g, camera);
+            case BAT        -> drawBat  (g, camera);
+            case ICE_SLIME  -> drawIceSlime (g, camera);
+            case POLAR_BEAR -> drawPolarBear(g, camera);
+            case ICE_BAT    -> drawIceBat   (g, camera);
         }
 
         drawHpBar      (g, camera);
@@ -458,6 +466,191 @@ public class Monster {
         g.drawString("-" + lastDamage, cx - 10, sy - 14);
     }
 
+    // ── 冰晶史萊姆 ───────────────────────────────────────────
+    private void drawIceSlime(Graphics2D g, Camera camera) {
+        int sx = (int)(x - camera.getOffsetX());
+        int sy = (int)(y - camera.getOffsetY());
+        double squish = Math.sin(walkAnim * 2) * 0.1;
+        int drawW = (int)(width  * (1.0 + squish));
+        int drawH = (int)(height * (1.0 - squish * 0.6));
+        int bx    = sx + (width - drawW) / 2;
+        int bodyTop = sy + (height - drawH);
+
+        Color bodyColor = hurtTimer > 0 ? new Color(255, 120, 120)
+                        : new Color(140, 210, 255); // 冰藍色
+
+        // 身體
+        g.setColor(new Color(bodyColor.getRed(), bodyColor.getGreen(),
+                             bodyColor.getBlue(), 200));
+        g.fillOval(bx, bodyTop, drawW, drawH);
+        g.setColor(bodyColor);
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawOval(bx, bodyTop, drawW, drawH);
+
+        // 冰晶高光
+        g.setColor(new Color(220, 240, 255, 180));
+        g.fillOval(bx + drawW/5, bodyTop + 3, drawW/3, drawH/4);
+
+        int cx = sx + width / 2;
+        int eyeY = bodyTop + drawH / 3;
+
+        // 眼睛（藍紫色）
+        g.setColor(new Color(200, 220, 255));
+        g.fillOval(cx - 9, eyeY, 7, 8);
+        g.fillOval(cx + 2, eyeY, 7, 8);
+        g.setColor(new Color(80, 60, 180));
+        g.fillOval(cx - 7, eyeY + 2, 4, 4);
+        g.fillOval(cx + 4, eyeY + 2, 4, 4);
+
+        // 冰刺（頂部小三角）
+        g.setColor(new Color(180, 230, 255));
+        int[] iceX = {cx - 4, cx, cx + 4};
+        int[] iceY = {bodyTop, bodyTop - 8, bodyTop};
+        g.fillPolygon(iceX, iceY, 3);
+        int[] iceX2 = {cx + 6, cx + 10, cx + 14};
+        int[] iceY2 = {bodyTop + 2, bodyTop - 5, bodyTop + 2};
+        g.fillPolygon(iceX2, iceY2, 3);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    // ── 極地熊 ───────────────────────────────────────────────
+    private void drawPolarBear(Graphics2D g, Camera camera) {
+        int sx = (int)(x - camera.getOffsetX());
+        int sy = (int)(y - camera.getOffsetY());
+        int cx = sx + width / 2;
+        int dir = facingRight ? 1 : -1;
+
+        Color bodyColor = hurtTimer > 0 ? new Color(255, 150, 150)
+                        : new Color(235, 240, 245); // 白/淺灰
+
+        g.setStroke(new BasicStroke(1.5f));
+
+        // 身體（大橢圓）
+        g.setColor(bodyColor);
+        g.fillOval(sx + 2, sy + 12, width - 4, height - 16);
+        g.setColor(new Color(200, 210, 220));
+        g.drawOval(sx + 2, sy + 12, width - 4, height - 16);
+
+        // 頭（前端圓）
+        int headX = facingRight ? sx + width - 16 : sx - 2;
+        g.setColor(bodyColor);
+        g.fillOval(headX, sy + 4, 22, 22);
+        g.setColor(new Color(200, 210, 220));
+        g.drawOval(headX, sy + 4, 22, 22);
+
+        // 耳朵（半圓）
+        int earBase = facingRight ? headX + 14 : headX + 2;
+        g.setColor(bodyColor);
+        g.fillOval(earBase,     sy,     10, 10);
+        g.fillOval(earBase - 8, sy + 1, 10, 10);
+        g.setColor(new Color(220, 170, 160));
+        g.fillOval(earBase + 2, sy + 2, 6, 6);
+
+        // 眼睛（小黑點）
+        int eyeX = facingRight ? headX + 14 : headX + 3;
+        g.setColor(Color.BLACK);
+        g.fillOval(eyeX, sy + 9, 5, 5);
+        // 眼睛高光
+        g.setColor(Color.WHITE);
+        g.fillOval(eyeX + 1, sy + 9, 2, 2);
+
+        // 鼻子
+        int noseX = facingRight ? headX + 18 : headX - 2;
+        g.setColor(new Color(60, 40, 30));
+        g.fillOval(noseX, sy + 15, 6, 5);
+
+        // 4 條腿
+        int swing = (int)(Math.sin(walkAnim) * 6);
+        g.setColor(bodyColor);
+        g.setStroke(new BasicStroke(5f));
+        int legY = sy + height - 4;
+        int fl = facingRight ? sx + width - 14 : sx + 4;
+        int bl = facingRight ? sx + 6          : sx + width - 18;
+        g.drawLine(fl,     legY - 12, fl,     legY + swing);
+        g.drawLine(fl + 7, legY - 10, fl + 7, legY - swing);
+        g.drawLine(bl,     legY - 12, bl,     legY - swing);
+        g.drawLine(bl + 7, legY - 10, bl + 7, legY + swing);
+
+        // 尾巴（小圓）
+        int tailX = facingRight ? sx + 3 : sx + width - 10;
+        g.setColor(bodyColor);
+        g.setStroke(new BasicStroke(1f));
+        g.fillOval(tailX, sy + 20, 10, 10);
+        g.setColor(new Color(200, 210, 220));
+        g.drawOval(tailX, sy + 20, 10, 10);
+
+        // 冰爪效果（揮擊時）
+        if (hurtTimer > 0.25f) {
+            g.setColor(new Color(180, 230, 255, 150));
+            g.setStroke(new BasicStroke(2f));
+            int pawX = facingRight ? sx + width + 2 : sx - 8;
+            g.drawLine(pawX, sy + 18, pawX + dir * 10, sy + 14);
+            g.drawLine(pawX, sy + 22, pawX + dir * 12, sy + 20);
+            g.drawLine(pawX, sy + 26, pawX + dir * 10, sy + 28);
+        }
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    // ── 冰蝠 ─────────────────────────────────────────────────
+    private void drawIceBat(Graphics2D g, Camera camera) {
+        int sx = (int)(x - camera.getOffsetX());
+        int sy = (int)(y - camera.getOffsetY());
+        int cx = sx + width / 2;
+        int cy = sy + height / 2;
+
+        Color bodyColor = hurtTimer > 0 ? new Color(255, 130, 130)
+                        : new Color(150, 200, 240); // 冰藍
+
+        // 翅膀搧動
+        double wingAngle = Math.sin(idleTimer * 9) * 0.45;
+        int wingSway = (int)(wingAngle * 14);
+
+        // 翅膀（冰藍色半透明）
+        int[] lWX = {cx, cx - 8, cx - width};
+        int[] lWY = {cy, cy - 10 + wingSway, cy - 5 + wingSway * 2};
+        g.setColor(new Color(140, 200, 255, 190));
+        g.fillPolygon(lWX, lWY, 3);
+        g.setColor(new Color(180, 220, 255));
+        g.drawPolygon(lWX, lWY, 3);
+
+        int[] rWX = {cx, cx + 8, cx + width};
+        int[] rWY = {cy, cy - 10 + wingSway, cy - 5 + wingSway * 2};
+        g.setColor(new Color(140, 200, 255, 190));
+        g.fillPolygon(rWX, rWY, 3);
+        g.setColor(new Color(180, 220, 255));
+        g.drawPolygon(rWX, rWY, 3);
+
+        // 身體
+        g.setColor(bodyColor);
+        g.fillOval(cx - 10, cy - 10, 20, 18);
+        g.setColor(new Color(100, 170, 220));
+        g.drawOval(cx - 10, cy - 10, 20, 18);
+
+        // 耳朵（冰刺狀尖耳）
+        int[] lEarX = {cx - 8, cx - 4, cx - 14};
+        int[] lEarY = {cy - 9, cy - 20, cy - 18};
+        g.setColor(bodyColor);
+        g.fillPolygon(lEarX, lEarY, 3);
+        int[] rEarX = {cx + 8, cx + 4, cx + 14};
+        int[] rEarY = {cy - 9, cy - 20, cy - 18};
+        g.fillPolygon(rEarX, rEarY, 3);
+
+        // 冰晶眼睛（白藍色）
+        g.setColor(new Color(200, 240, 255));
+        g.fillOval(cx - 7, cy - 6, 5, 5);
+        g.fillOval(cx + 2, cy - 6, 5, 5);
+        g.setColor(new Color(50, 120, 200));
+        g.fillOval(cx - 6, cy - 5, 3, 3);
+        g.fillOval(cx + 3, cy - 5, 3, 3);
+
+        // 冰霧噴吐效果（間歇性）
+        if ((int)(idleTimer * 2) % 3 == 0) {
+            g.setColor(new Color(200, 235, 255, 90));
+            g.fillOval(cx - 8, cy + 5, 16, 8);
+        }
+        g.setStroke(new BasicStroke(1f));
+    }
+
     // ── 死亡特效 ─────────────────────────────────────────────
     private void drawDeathEffect(Graphics2D g, Camera camera) {
         int sx = (int)(x - camera.getOffsetX()) + width  / 2;
@@ -469,9 +662,12 @@ public class Monster {
 
         // 種類特色顏色
         Color c = switch (type) {
-            case SLIME -> new Color(0.3f, 1f, 0.4f, alpha);
-            case BOAR  -> new Color(0.9f, 0.6f, 0.2f, alpha);
-            case BAT   -> new Color(0.7f, 0.3f, 1.0f, alpha);
+            case SLIME      -> new Color(0.3f, 1f,   0.4f, alpha);
+            case BOAR       -> new Color(0.9f, 0.6f, 0.2f, alpha);
+            case BAT        -> new Color(0.7f, 0.3f, 1.0f, alpha);
+            case ICE_SLIME  -> new Color(0.6f, 0.9f, 1.0f, alpha);
+            case POLAR_BEAR -> new Color(0.9f, 0.95f,1.0f, alpha);
+            case ICE_BAT    -> new Color(0.5f, 0.85f,1.0f, alpha);
         };
         g.setColor(c);
         g.setStroke(new BasicStroke(3f));
@@ -480,7 +676,15 @@ public class Monster {
     }
 
     // ── Getter / Setter ──────────────────────────────────────
-    public boolean   isAlive()         { return alive; }
+    /**
+     * 讀取並清除「剛死亡」旗標（每死只觸發一次，GamePanel 用來給玩家 EXP）。
+     */
+    public boolean pollJustDied() {
+        if (justDied) { justDied = false; return true; }
+        return false;
+    }
+    public int     getExpReward()  { return type.expReward; }
+    public boolean isAlive()         { return alive; }
     public boolean   isHitThisAttack() { return hitThisAttack; }
     public void      setHitThisAttack(boolean v) { hitThisAttack = v; }
     public double    getX()            { return x; }

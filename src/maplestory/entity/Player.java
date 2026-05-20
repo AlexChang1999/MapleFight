@@ -6,6 +6,7 @@ import maplestory.item.EquipSlot;
 import maplestory.job.Job;
 import maplestory.job.Warrior;
 import maplestory.map.BaseMap;
+import maplestory.map.Ladder;
 import maplestory.map.Platform;
 
 import java.awt.*;
@@ -56,6 +57,19 @@ public class Player {
     private double  attackTimer      = 0;
     private int     attackComboIndex = 0; // 0=劈砍, 1=突刺（每次切換）
 
+    // ── 梯子攀爬 ─────────────────────────────────────────────
+    private boolean movingUp   = false;
+    private boolean movingDown = false;
+    private boolean onLadder   = false;
+    private static final double CLIMB_SPEED = 115;
+
+    // ── 冰雪緩速 ─────────────────────────────────────────────
+    private double slowTimer  = 0;
+    private double slowFactor = 1.0; // 1.0=正常, <1.0=減速
+
+    // ── 升級特效 ─────────────────────────────────────────────
+    private double levelUpTimer = 0;
+
     // ── 動畫計時 ─────────────────────────────────────────────
     private double walkAnim  = 0; // 走路週期
     private double idleTimer = 0; // 靜待呼吸週期
@@ -77,8 +91,9 @@ public class Player {
     private int hp, maxHp;
     private int mp, maxMp;
 
-    // ── 職業 ─────────────────────────────────────────────────
-    private final Job job;
+    // ── 職業（10 等前為 null，10 等轉劍士）────────────────────
+    private Job    job     = null;
+    private String jobName = "新手";
 
     // ── 裝備欄（8 格）────────────────────────────────────────
     private final Map<EquipSlot, Equipment> equipments = new EnumMap<>(EquipSlot.class);
@@ -102,9 +117,6 @@ public class Player {
         equipments.put(EquipSlot.GLOVES, Equipment.hempGloves());
         equipments.put(EquipSlot.BOOTS,  Equipment.hempBoots());
 
-        // 建立職業（劍士）
-        this.job = new Warrior();
-
         // HP / MP（含裝備加成）
         recalculateStats();
         this.hp = maxHp;
@@ -123,51 +135,69 @@ public class Player {
     // 每幀更新
     // ─────────────────────────────────────────────────────────
     public void update(double dt, BaseMap map) {
-        idleTimer += dt;
-
-        // 脫戰計時
+        idleTimer           += dt;
         timeSinceLastCombat += dt;
+        if (slowTimer    > 0) { slowTimer    -= dt; if (slowTimer    <= 0) slowFactor = 1.0; }
+        if (levelUpTimer > 0)   levelUpTimer -= dt;
 
-        // 水平移動
-        velX = 0;
-        if (movingLeft)  { velX = -MOVE_SPEED; facingRight = false; }
-        if (movingRight) { velX =  MOVE_SPEED; facingRight = true;  }
-
-        // 走路動畫
-        if (velX != 0 && onGround) walkAnim += dt * 8;
-
-        // 重力
-        velY += GRAVITY * dt;
-
-        // 套用速度
-        x += velX * dt;
-        y += velY * dt;
-
-        // 地圖邊界
-        if (x < 0) x = 0;
-        if (x > map.getMapWidth() - WIDTH) x = map.getMapWidth() - WIDTH;
-
-        // 平台碰撞
-        onGround = false;
-        for (Platform p : map.getPlatforms()) {
-            if (x + WIDTH <= p.getX() || x >= p.getX() + p.getWidth()) continue;
-            double feet     = y + HEIGHT;
-            double prevFeet = feet - velY * dt;
-            if (prevFeet <= p.getY() && feet >= p.getY() && velY > 0) {
-                y    = p.getY() - HEIGHT;
-                velY = 0;
-                onGround = true;
+        // ── 梯子偵測 ─────────────────────────────────────────
+        boolean wasOnLadder = onLadder;
+        onLadder = false;
+        for (Ladder lad : map.getLadders()) {
+            if (lad.getZone().intersects(
+                    new Rectangle((int) x, (int) y, WIDTH, HEIGHT))) {
+                if (wasOnLadder || movingUp || movingDown) {
+                    onLadder = true;
+                    // 對齊梯子中心 X（平滑插值）
+                    double tx = lad.getCenterX() - WIDTH / 2.0;
+                    x += (tx - x) * Math.min(1.0, 14 * dt);
+                }
+                break;
             }
         }
 
-        // 攻擊計時
+        // ── 位移 ─────────────────────────────────────────────
+        if (onLadder) {
+            velX = 0; velY = 0;
+            if (movingUp)   velY = -CLIMB_SPEED;
+            if (movingDown) velY =  CLIMB_SPEED;
+            y += velY * dt;
+        } else {
+            double spd = MOVE_SPEED * slowFactor;
+            velX = 0;
+            if (movingLeft)  { velX = -spd; facingRight = false; }
+            if (movingRight) { velX =  spd; facingRight = true;  }
+            if (velX != 0 && onGround) walkAnim += dt * 8;
+            velY += GRAVITY * dt;
+            x += velX * dt;
+            y += velY * dt;
+        }
+
+        // ── 邊界 ─────────────────────────────────────────────
+        if (x < 0) x = 0;
+        if (x > map.getMapWidth() - WIDTH) x = map.getMapWidth() - WIDTH;
+
+        // ── 平台碰撞（爬梯時跳過） ───────────────────────────
+        onGround = false;
+        if (!onLadder) {
+            for (Platform p : map.getPlatforms()) {
+                if (x + WIDTH <= p.getX() || x >= p.getX() + p.getWidth()) continue;
+                double feet     = y + HEIGHT;
+                double prevFeet = feet - velY * dt;
+                if (prevFeet <= p.getY() && feet >= p.getY() && velY > 0) {
+                    y = p.getY() - HEIGHT; velY = 0; onGround = true;
+                }
+            }
+        }
+
+        // ── 攻擊計時 ─────────────────────────────────────────
         if (attacking) {
             attackTimer -= dt;
             if (attackTimer <= 0) attacking = false;
         }
 
-        // 職業更新（被動 + 技能冷卻）
-        job.update(this, dt);
+        // ── 職業更新（被動 + 技能冷卻） ──────────────────────
+        if (job != null) job.update(this, dt);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -175,7 +205,11 @@ public class Player {
     // ─────────────────────────────────────────────────────────
 
     public void jump() {
-        if (onGround) { velY = JUMP_FORCE; onGround = false; }
+        if (onLadder) {
+            onLadder = false; velY = JUMP_FORCE * 0.7; // 從梯子跳離
+        } else if (onGround) {
+            velY = JUMP_FORCE; onGround = false;
+        }
     }
 
     /**
@@ -193,8 +227,39 @@ public class Player {
 
     /** 使用技能（含怪物列表，由 GamePanel 呼叫） */
     public void useSkill(int index, List<Monster> monsters) {
+        if (job == null) return;
         job.useSkill(index, this, monsters);
         timeSinceLastCombat = 0;
+    }
+
+    /** EXP 獲得 + 自動升級 */
+    public void gainExp(int amount) {
+        exp += amount;
+        while (exp >= expToNextLevel) {
+            exp -= expToNextLevel;
+            level++;
+            expToNextLevel = level * 100;
+            str += 2; dex += 1; intel += 1; luk += 1;
+            recalculateStats();
+            hp = maxHp; mp = maxMp;  // 升級全回
+            levelUpTimer = 2.5;
+            checkJobUnlock();
+        }
+    }
+
+    /** 10 等自動轉職劍士 */
+    private void checkJobUnlock() {
+        if (level >= 10 && job == null) {
+            job          = new Warrior();
+            jobName      = job.getDisplayName(); // "劍士"
+            levelUpTimer = 3.5; // 轉職時延長特效
+        }
+    }
+
+    /** 受冰系攻擊：套用緩速狀態 */
+    public void applySlow(double duration, double factor) {
+        slowTimer  = Math.max(slowTimer, duration);
+        slowFactor = Math.min(slowFactor, factor);
     }
 
     /** 攻擊進度比例 0.0（剛開始）~ 1.0（結束） */
@@ -258,8 +323,29 @@ public class Player {
         int sy = (int)(y - camera.getOffsetY());
 
         // 靜待呼吸偏移
-        if (velX == 0 && onGround && !attacking) {
+        if (velX == 0 && onGround && !attacking && !onLadder) {
             sy += (int)(Math.sin(idleTimer * 1.6) * 2.0);
+        }
+
+        // 升級 / 轉職光效（金色光環）
+        if (levelUpTimer > 0) {
+            float alpha = (float) Math.min(1.0, levelUpTimer / 2.5) * 0.65f;
+            g.setColor(new Color(1f, 0.9f, 0.25f, alpha));
+            g.setStroke(new BasicStroke(3f));
+            g.drawOval(sx - 10, sy - 10, WIDTH + 20, HEIGHT + 20);
+            g.setStroke(new BasicStroke(1f));
+            if (levelUpTimer > 2.5) { // 轉職時顯示文字
+                g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
+                g.setColor(new Color(1f, 0.95f, 0.3f, alpha));
+                g.drawString("✦ 轉職：" + jobName + " ✦", sx - 30, sy - 16);
+            }
+        }
+
+        // 冰慢光效（藍色光暈）
+        if (slowTimer > 0) {
+            float a = (float)(slowTimer / 2.5) * 0.3f;
+            g.setColor(new Color(0.3f, 0.7f, 1f, Math.min(a, 0.35f)));
+            g.fillRoundRect(sx - 4, sy, WIDTH + 8, HEIGHT, 8, 8);
         }
 
         int cx = sx + WIDTH / 2;
@@ -471,6 +557,9 @@ public class Player {
     // ─────────────────────────────────────────────────────────
     public void setMovingLeft (boolean v) { movingLeft  = v; }
     public void setMovingRight(boolean v) { movingRight = v; }
+    public void setMovingUp   (boolean v) { movingUp    = v; }
+    public void setMovingDown (boolean v) { movingDown  = v; }
+    public boolean canChangeJob()         { return level >= 10 && job == null; }
 
     public double  getX()                  { return x; }
     public double  getY()                  { return y; }
@@ -479,7 +568,7 @@ public class Player {
     public int     getMp()                 { return mp; }
     public int     getMaxMp()              { return maxMp; }
     public int     getLevel()              { return level; }
-    public String  getJobName()            { return job.getDisplayName(); }
+    public String  getJobName()            { return jobName; }
     public boolean isAttacking()           { return attacking; }
     public boolean isFacingRight()         { return facingRight; }
     public int     getStr()                { return str; }

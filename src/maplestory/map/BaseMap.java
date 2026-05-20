@@ -33,4 +33,7 @@ public abstract class BaseMap {
 
     /** 地圖上的 NPC（預設空，子類覆寫） */
     public List<NPC> getNPCs() { return Collections.emptyList(); }
+
+    /** 地圖上的梯子（預設空，子類覆寫） */
+    public List<Ladder> getLadders() { return Collections.emptyList(); }
 }

@@ -40,6 +40,8 @@ public class KeyBindingManager {
         bind(KeyEvent.VK_SPACE, ActionType.JUMP);
 
         // ── 戰鬥 ─────────────────────────────────────────────
+        bind(KeyEvent.VK_UP,   ActionType.CLIMB_UP);
+        bind(KeyEvent.VK_DOWN, ActionType.CLIMB_DOWN);
         bind(KeyEvent.VK_Z, ActionType.ATTACK);
         bind(KeyEvent.VK_Q, ActionType.SKILL_0);
         bind(KeyEvent.VK_W, ActionType.SKILL_1);

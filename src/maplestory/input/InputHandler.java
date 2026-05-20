@@ -38,13 +38,15 @@ public class InputHandler extends KeyAdapter {
 
         // 只處理 GAME 類動作（UI 開關由 GamePanel 處理）
         switch (action) {
-            case MOVE_LEFT  -> player.setMovingLeft(true);
-            case MOVE_RIGHT -> player.setMovingRight(true);
-            case JUMP       -> player.jump();
-            case ATTACK     -> player.attack();
-            case SKILL_0    -> pendingSkill = 0;
-            case SKILL_1    -> pendingSkill = 1;
-            default         -> {} // UI 動作忽略（GamePanel 處理）
+            case MOVE_LEFT   -> player.setMovingLeft(true);
+            case MOVE_RIGHT  -> player.setMovingRight(true);
+            case CLIMB_UP    -> player.setMovingUp(true);
+            case CLIMB_DOWN  -> player.setMovingDown(true);
+            case JUMP        -> player.jump();
+            case ATTACK      -> player.attack();
+            case SKILL_0     -> pendingSkill = 0;
+            case SKILL_1     -> pendingSkill = 1;
+            default          -> {}
         }
     }
 
@@ -57,6 +59,8 @@ public class InputHandler extends KeyAdapter {
         switch (action) {
             case MOVE_LEFT  -> player.setMovingLeft(false);
             case MOVE_RIGHT -> player.setMovingRight(false);
+            case CLIMB_UP   -> player.setMovingUp(false);
+            case CLIMB_DOWN -> player.setMovingDown(false);
             default         -> {}
         }
     }
