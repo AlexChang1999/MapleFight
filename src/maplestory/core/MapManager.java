@@ -1,5 +1,7 @@
 package maplestory.core;
 
+import maplestory.audio.SFX;
+import maplestory.audio.SoundManager;
 import maplestory.entity.Player;
 import maplestory.map.ArcticMap;
 import maplestory.map.BaseMap;
@@ -35,7 +37,8 @@ public class MapManager {
         maps.put("novice3", new NoviceMap3());
         maps.put("battle",  new GameMap());
         maps.put("arctic",  new ArcticMap());
-        currentMap = maps.get("village"); // ← 遊戲從村莊開始
+        currentMap = maps.get("village");
+        SoundManager.get().playBGM("village"); // 遊戲開始播放村莊 BGM
     }
 
     /** 每幀更新：傳送門動畫 + 碰撞偵測 */
@@ -69,6 +72,8 @@ public class MapManager {
             currentMap   = target;
             player.setPosition(spawnX, spawnY);
             justSwitched = true;
+            SoundManager.get().playSFX(SFX.PORTAL);
+            SoundManager.get().playBGM(mapId);
         }
     }
 

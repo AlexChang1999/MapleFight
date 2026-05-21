@@ -1,5 +1,7 @@
 package maplestory.entity;
 
+import maplestory.audio.SFX;
+import maplestory.audio.SoundManager;
 import maplestory.core.Camera;
 import maplestory.item.Equipment;
 import maplestory.item.EquipSlot;
@@ -240,9 +242,11 @@ public class Player {
 
     public void jump() {
         if (onLadder) {
-            onLadder = false; velY = JUMP_FORCE * 0.7; // 從梯子跳離
+            onLadder = false; velY = JUMP_FORCE * 0.7;
+            SoundManager.get().playSFX(SFX.JUMP);
         } else if (onGround) {
             velY = JUMP_FORCE; onGround = false;
+            SoundManager.get().playSFX(SFX.JUMP);
         }
     }
 
@@ -254,8 +258,9 @@ public class Player {
         if (!attacking) {
             attacking        = true;
             attackTimer      = ATTACK_DURATION;
-            attackComboIndex = 1 - attackComboIndex; // 0↔1 切換
-            timeSinceLastCombat = 0; // 重置脫戰計時
+            attackComboIndex = 1 - attackComboIndex;
+            timeSinceLastCombat = 0;
+            SoundManager.get().playSFX(SFX.ATTACK);
         }
     }
 
@@ -275,8 +280,9 @@ public class Player {
             expToNextLevel = level * 100;
             str += 2; dex += 1; intel += 1; luk += 1;
             recalculateStats();
-            hp = maxHp; mp = maxMp;  // 升級全回
+            hp = maxHp; mp = maxMp;
             levelUpTimer = 2.5;
+            SoundManager.get().playSFX(SFX.LEVEL_UP);
             checkJobUnlock();
         }
     }
@@ -329,7 +335,8 @@ public class Player {
 
     public void takeDamage(int dmg) {
         hp = Math.max(0, hp - dmg);
-        timeSinceLastCombat = 0; // 被打也算戰鬥狀態
+        timeSinceLastCombat = 0;
+        SoundManager.get().playSFX(SFX.HURT);
     }
 
     /** 消耗 MP，不足時回傳 false */

@@ -1,5 +1,7 @@
 package maplestory.entity;
 
+import maplestory.audio.SFX;
+import maplestory.audio.SoundManager;
 import maplestory.core.Camera;
 import maplestory.item.Consumable;
 import maplestory.item.DropItem;
@@ -27,6 +29,11 @@ public class Monster {
     private static final double BOAR_CHARGE_SPEED    = 270;  // 衝刺速度
     private static final double BOAR_CHARGE_DURATION = 0.7;  // 衝刺持續秒
     private static final double BOAR_CHARGE_CD       = 3.0;  // 衝刺冷卻
+
+    // ── 蝙蝠俯衝常數 ─────────────────────────────────────────
+    private static final double BAT_DIVE_SPEED   = 260;  // 俯衝速度
+    private static final double BAT_DIVE_CD      = 3.5;  // 俯衝冷卻
+    private static final int    BAT_DIVE_X_RANGE = 150;  // 觸發俯衝的X距離上限
 
     // ── 類型與尺寸 ───────────────────────────────────────────
     private final MonsterType type;
@@ -71,6 +78,12 @@ public class Monster {
     private double  boarChargeTimer = 0;
     private double  boarChargeCd    = 0;
 
+    // ── 蝙蝠專屬：俯衝 ───────────────────────────────────────
+    private boolean batDiving      = false;
+    private boolean batReturning   = false;
+    private double  batDiveCd      = 0;
+    private double  batDiveTargetY = 0;
+
     // ─────────────────────────────────────────────────────────
     public Monster(double x, double y, MonsterType type) {
         this.type   = type;
@@ -108,9 +121,9 @@ public class Monster {
 
         // 依種類執行不同更新
         switch (type) {
-            case SLIME -> updateSlime(dt, gameMap, player);
-            case BOAR  -> updateBoar (dt, gameMap, player);
-            case BAT   -> updateBat  (dt, gameMap, player);
+            case SLIME, ICE_SLIME              -> updateSlime(dt, gameMap, player);
+            case BOAR,  POLAR_BEAR             -> updateBoar (dt, gameMap, player);
+            case BAT,   ICE_BAT                -> updateBat  (dt, gameMap, player);
         }
 
         // 地圖邊界
@@ -176,35 +189,71 @@ public class Monster {
         tryAttack(player);
     }
 
-    // ── 蝙蝠：彈簧懸停 + 水平追擊 ───────────────────────────
+    // ── 蝙蝠：懸停 → 俯衝 → 返回 三段 AI ────────────────────
     private void updateBat(double dt, BaseMap map, Player player) {
-        // 懸停目標：出生高度 + 輕微上下浮動
-        double targetY = spawnY + Math.sin(idleTimer * 2.5) * 18;
-
-        // 彈簧物理（直接設速度，不累積重力）
-        velY = (targetY - y) * 5.0;
-        y   += velY * dt;
+        if (batDiveCd > 0) batDiveCd -= dt;
 
         double distX   = player.getX() - x;
         double distAbs = Math.abs(distX);
         int    range   = taunted ? 9999 : type.detectRange;
 
-        if (distAbs < range) {
-            double speed = type.moveSpeed;
-            if (distX > 0) { x += speed * dt; facingRight = true;  walkAnim += dt * 7; }
-            else            { x -= speed * dt; facingRight = false; walkAnim += dt * 7; }
-        }
+        if (batDiving) {
+            // 俯衝中：直線向下 + 繼續水平貼近玩家
+            y += BAT_DIVE_SPEED * dt;
+            double spd = type.moveSpeed * 1.5;
+            if (distX > 0) { x += spd * dt; facingRight = true;  }
+            else            { x -= spd * dt; facingRight = false; }
 
-        tryAttack(player);
+            // 抵達目標高度或飛太遠 → 切換返回
+            if (y >= batDiveTargetY || y > spawnY + 500) {
+                batDiving    = false;
+                batReturning = true;
+            }
+            tryAttack(player);
+
+        } else if (batReturning) {
+            // 返回：彈簧回到出生高度
+            velY = (spawnY - y) * 6.0;
+            y   += velY * dt;
+            // 返回時仍緩慢水平追蹤
+            if (distAbs < range) {
+                double spd = type.moveSpeed * 0.5;
+                if (distX > 0) { x += spd * dt; facingRight = true;  }
+                else            { x -= spd * dt; facingRight = false; }
+            }
+            if (Math.abs(y - spawnY) < 15) {
+                batReturning = false;
+                batDiveCd    = BAT_DIVE_CD;
+            }
+
+        } else {
+            // 懸停：彈簧浮動 + 水平追蹤
+            double targetY = spawnY + Math.sin(idleTimer * 2.5) * 18;
+            velY = (targetY - y) * 5.0;
+            y   += velY * dt;
+
+            if (distAbs < range) {
+                double spd = type.moveSpeed;
+                if (distX > 0) { x += spd * dt; facingRight = true;  walkAnim += dt * 7; }
+                else            { x -= spd * dt; facingRight = false; walkAnim += dt * 7; }
+
+                // 觸發俯衝：冷卻完畢且X距離夠近
+                if (batDiveCd <= 0 && distAbs < BAT_DIVE_X_RANGE) {
+                    batDiving      = true;
+                    batDiveTargetY = player.getY(); // 鎖定玩家當前高度
+                }
+            }
+            tryAttack(player);
+        }
     }
 
-    /** 共用攻擊邏輯（冰系額外套用緩速效果） */
+    /** 共用攻擊邏輯（同時檢查 X、Y 距離，避免蝙蝠懸空時誤傷） */
     private void tryAttack(Player player) {
-        double distX   = player.getX() - x;
-        double distAbs = Math.abs(distX);
-        if (distAbs < ATTACK_RANGE && attackCooldown <= 0) {
+        double distX = Math.abs(player.getX() - x);
+        double distY = Math.abs(player.getY() - y);
+        if (distX < ATTACK_RANGE && distY < ATTACK_RANGE && attackCooldown <= 0) {
             player.takeDamage(atk);
-            if (type.iceType) player.applySlow(2.5, 0.5); // 冰系緩速
+            if (type.iceType) player.applySlow(2.5, 0.5);
             attackCooldown = ATTACK_CD;
         }
     }
@@ -234,8 +283,9 @@ public class Monster {
             alive        = false;
             deathTimer   = 1.2;
             respawnTimer = type.respawnTime;
-            justDied     = true;  // 讓 GamePanel 讀取 EXP
-            dropPending  = true;  // 讓 GamePanel 讀取掉落物
+            justDied     = true;
+            dropPending  = true;
+            SoundManager.get().playSFX(SFX.MONSTER_DEATH);
         }
     }
 
@@ -704,10 +754,13 @@ public class Monster {
         alive        = true;
         velY         = 0;
         hurtTimer    = 0;
-        attackCooldown = 0;
+        attackCooldown  = 0;
         boarCharging    = false;
         boarChargeTimer = 0;
         boarChargeCd    = 0;
+        batDiving       = false;
+        batReturning    = false;
+        batDiveCd       = 0;
         taunted      = false;
         tauntTimer   = 0;
     }
