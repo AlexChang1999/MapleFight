@@ -36,4 +36,10 @@ public abstract class BaseMap {
 
     /** 地圖上的梯子（預設空，子類覆寫） */
     public List<Ladder> getLadders() { return Collections.emptyList(); }
+
+    /** 地圖顯示名稱（中文），預設回傳 mapId，子類覆寫提供正確名稱 */
+    public String getMapName() { return getMapId(); }
+
+    /** 進入此地圖所需最低等級（預設 1，即無限制） */
+    public int getMinLevel() { return 1; }
 }

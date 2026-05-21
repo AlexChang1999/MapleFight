@@ -145,4 +145,5 @@ public class NoviceMap3 extends BaseMap {
     @Override public List<Ladder>   getLadders()   { return ladders; }
     @Override public int            getMapWidth()  { return MAP_WIDTH; }
     @Override public String         getMapId()     { return "novice3"; }
+    @Override public String         getMapName()   { return "新手森林三區"; }
 }

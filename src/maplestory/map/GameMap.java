@@ -120,4 +120,6 @@ public class GameMap extends BaseMap {
     @Override public List<Portal>   getPortals()       { return portals; }
     @Override public int            getMapWidth()      { return MAP_WIDTH; }
     @Override public String         getMapId()         { return "battle"; }
+    @Override public String         getMapName()       { return "冒險平原"; }
+    @Override public int            getMinLevel()      { return 10; }
 }

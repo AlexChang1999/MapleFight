@@ -292,7 +292,7 @@ public class Player {
         while (exp >= expToNextLevel) {
             exp -= expToNextLevel;
             level++;
-            expToNextLevel = level * level * 10 + level * 40 + 50;
+            expToNextLevel = (int)(100 * Math.pow(level, 1.5));
             str += 2; dex += 1; intel += 1; luk += 1;
             recalculateStats();
             hp = maxHp; mp = maxMp;

@@ -281,4 +281,6 @@ public class ArcticMap extends BaseMap {
     @Override public List<Ladder>   getLadders()   { return ladders;   }
     @Override public int            getMapWidth()  { return MAP_WIDTH; }
     @Override public String         getMapId()     { return "arctic";  }
+    @Override public String         getMapName()   { return "極地冰原"; }
+    @Override public int            getMinLevel()  { return 15; }
 }

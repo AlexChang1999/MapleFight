@@ -532,7 +532,7 @@ public class GamePanel extends JPanel implements Runnable {
             mapManager.switchMap(targetMapId, spawnX, gY - 80, player);
             camera.snapTo(player.getX(), player.getY(),
                           mapManager.getCurrentMap().getMapWidth());
-            pickupNotice      = "傳送至：" + mapName(targetMapId);
+            pickupNotice      = "傳送至：" + mapManager.getCurrentMap().getMapName();
             pickupNoticeTimer = 2.0;
         } else if (!result.isEmpty()) {
             pickupNotice      = result;
@@ -617,6 +617,9 @@ public class GamePanel extends JPanel implements Runnable {
             camera.snapTo(player.getX(), player.getY(),
                           mapManager.getCurrentMap().getMapWidth());
             questManager.onMapEntered(mapManager.getCurrentMap().getMapId());
+            // 進入新地圖時，強制重生所有怪物（讓玩家回到同地圖時怪物已復活）
+            for (Monster m : currentMonsters()) m.forceRespawn();
+            drops.clear(); // 清除上個地圖殘留的掉落物
         }
 
         // 技能輸入
@@ -813,7 +816,7 @@ public class GamePanel extends JPanel implements Runnable {
         g.setColor(Color.YELLOW);
         g.drawString("Lv." + player.getLevel() + " " + player.getJobName(), cx, hudY + 18);
 
-        String mapLabel = mapManager.getCurrentMap().getMapId();
+        String mapLabel = mapManager.getCurrentMap().getMapName();
         String interactHint = "";
         if (nearDialogueNpc != null)
             interactHint = " [" + getBoundKeyName(ActionType.UI_INTERACT) + "]對話";
@@ -822,7 +825,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         g.setColor(new Color(150, 155, 200));
-        g.drawString(mapName(mapLabel) + interactHint, cx, hudY + 34);
+        g.drawString(mapLabel + interactHint, cx, hudY + 34);
 
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
         g.setColor(new Color(255, 210, 0));
@@ -863,19 +866,7 @@ public class GamePanel extends JPanel implements Runnable {
         g.drawString("EXP", 3, expY + 6);
     }
 
-    private String mapName(String mapId) {
-        return switch (mapId) {
-            case "village"  -> "新手村";
-            case "novice1"  -> "新手森林一區";
-            case "novice2"  -> "新手森林二區";
-            case "novice3"  -> "新手森林三區";
-            case "frontier" -> "前線前哨站";
-            case "battle"   -> "冒險平原";
-            case "icepost"  -> "冰原驛站";
-            case "arctic"   -> "極地冰原";
-            default         -> mapId;
-        };
-    }
+
 
     private String getBoundKeyName(ActionType action) {
         Integer kc = keyBindings.getKeyFor(action);

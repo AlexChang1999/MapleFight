@@ -73,16 +73,21 @@ public class Monster {
     // ── 重生 ─────────────────────────────────────────────────
     private double  respawnTimer = 0;
 
-    // ── 野豬專屬：衝刺 ───────────────────────────────────────
+    // ── 野豬專屬：衝刺 + 撞牆硬直 ───────────────────────────
     private boolean boarCharging    = false;
     private double  boarChargeTimer = 0;
     private double  boarChargeCd    = 0;
+    private double  boarStunTimer   = 0;   // 撞牆後的硬直秒數
 
     // ── 蝙蝠專屬：俯衝 ───────────────────────────────────────
     private boolean batDiving      = false;
     private boolean batReturning   = false;
     private double  batDiveCd      = 0;
     private double  batDiveTargetY = 0;
+
+    // ── 極地熊專屬：揮擊預備 ─────────────────────────────────
+    private double  bearWindupTimer  = 0;     // 預備倒數計時
+    private boolean bearWindupActive = false; // 是否正在預備中
 
     // ─────────────────────────────────────────────────────────
     public Monster(double x, double y, MonsterType type) {
@@ -118,6 +123,8 @@ public class Monster {
         if (hurtTimer    > 0) hurtTimer    -= dt;
         if (attackCooldown > 0) attackCooldown -= dt;
         if (tauntTimer   > 0) { tauntTimer -= dt; if (tauntTimer <= 0) taunted = false; }
+        if (boarStunTimer > 0) boarStunTimer -= dt;
+        if (bearWindupTimer > 0) bearWindupTimer -= dt;
 
         // 依種類執行不同更新
         switch (type) {
@@ -150,20 +157,39 @@ public class Monster {
         tryAttack(player);
     }
 
-    // ── 野豬：衝刺 AI ────────────────────────────────────────
+    // ── 野豬 / 極地熊：衝刺 AI ──────────────────────────────
     private void updateBoar(double dt, BaseMap map, Player player) {
         velY += GRAVITY * dt;
         y    += velY * dt;
         checkPlatformCollision(map, dt);
 
         if (boarChargeCd > 0) boarChargeCd -= dt;
+
+        // 硬直中：靜止不動
+        if (boarStunTimer > 0) {
+            walkAnim = 0;
+            tryAttackWithWindup(player);
+            return;
+        }
+
         if (boarChargeTimer > 0) {
             // 衝刺中
             double dir = facingRight ? 1 : -1;
+            double prevX = x;
             x += BOAR_CHARGE_SPEED * dir * dt;
             walkAnim += dt * 10;
             boarChargeTimer -= dt;
-            if (boarChargeTimer <= 0) {
+
+            // 撞到地圖邊界 → 硬直
+            boolean hitWall = (x <= 0 && !facingRight)
+                           || (x >= map.getMapWidth() - width && facingRight);
+            if (hitWall) {
+                x = prevX; // 還原到牆前
+                boarCharging    = false;
+                boarChargeTimer = 0;
+                boarChargeCd    = BOAR_CHARGE_CD;
+                boarStunTimer   = 0.5; // 撞牆後硬直 0.5 秒
+            } else if (boarChargeTimer <= 0) {
                 boarCharging = false;
                 boarChargeCd = BOAR_CHARGE_CD;
             }
@@ -174,8 +200,8 @@ public class Monster {
             int    range   = taunted ? 9999 : type.detectRange;
 
             if (distAbs < range) {
-                // 觸發衝刺
-                if (boarChargeCd <= 0 && distAbs < type.detectRange * 0.8) {
+                // 觸發衝刺（野豬才衝刺；極地熊僅走路追擊）
+                if (type == MonsterType.BOAR && boarChargeCd <= 0 && distAbs < type.detectRange * 0.8) {
                     boarCharging    = true;
                     boarChargeTimer = BOAR_CHARGE_DURATION;
                     facingRight     = distX > 0;
@@ -186,7 +212,45 @@ public class Monster {
             }
         }
 
-        tryAttack(player);
+        tryAttackWithWindup(player);
+    }
+
+    /**
+     * 帶預備動作的攻擊邏輯（極地熊 0.3s 預備；其他怪物直接攻擊）。
+     * 預備邏輯：
+     *   接觸玩家 + 冷卻完畢 → 若尚未開始預備，啟動 bearWindupTimer = 0.3s
+     *   預備計時中 → return（不打）
+     *   預備計時到 0 → 揮擊並重置冷卻
+     */
+    private void tryAttackWithWindup(Player player) {
+        if (attackCooldown > 0) return;
+        Rectangle atkBox = new Rectangle((int) x, (int) y, width, height);
+        Rectangle plBox  = new Rectangle(
+            (int) player.getX(), (int) player.getY(), Player.WIDTH, Player.HEIGHT);
+
+        if (atkBox.intersects(plBox)) {
+            if (type == MonsterType.POLAR_BEAR) {
+                if (!bearWindupActive) {
+                    // 啟動 0.3s 預備
+                    bearWindupTimer  = 0.3;
+                    bearWindupActive = true;
+                    return;
+                }
+                // 預備倒數中（由 update() 主計時區遞減）
+                if (bearWindupTimer > 0) return;
+                // 倒數完畢 → 揮擊
+                player.takeDamage(atk);
+                if (type.iceType) player.applySlow(2.5, 0.5);
+                attackCooldown   = ATTACK_CD;
+                bearWindupActive = false;
+            } else {
+                tryAttack(player);
+            }
+        } else {
+            // 脫離攻擊範圍，重置預備狀態
+            bearWindupActive = false;
+            bearWindupTimer  = 0;
+        }
     }
 
     // ── 蝙蝠：懸停 → 俯衝 → 返回 三段 AI ────────────────────
@@ -652,7 +716,20 @@ public class Monster {
         g.setColor(new Color(200, 210, 220));
         g.drawOval(tailX, sy + 20, 10, 10);
 
-        // 冰爪效果（揮擊時）
+        // 揮擊預備動畫（爪子發光 + 震動提示）
+        if (bearWindupActive && bearWindupTimer > 0) {
+            float pulse = (float)(0.5 + 0.5 * Math.sin(idleTimer * 30));
+            int glow    = (int)(150 + 105 * pulse);
+            g.setColor(new Color(255, 120, 40, glow));
+            g.setStroke(new BasicStroke(3f));
+            int pawX = facingRight ? sx + width + 2 : sx - 8;
+            g.drawLine(pawX, sy + 14, pawX + dir * 14, sy + 10);
+            g.drawLine(pawX, sy + 19, pawX + dir * 16, sy + 18);
+            g.drawLine(pawX, sy + 24, pawX + dir * 14, sy + 28);
+            g.setColor(new Color(255, 200, 80, (int)(glow * 0.5)));
+            g.fillOval(pawX + dir * 6 - 6, sy + 8, 12, 12);
+        }
+        // 冰爪命中效果
         if (hurtTimer > 0.25f) {
             g.setColor(new Color(180, 230, 255, 150));
             g.setStroke(new BasicStroke(2f));
@@ -760,11 +837,26 @@ public class Monster {
         boarCharging    = false;
         boarChargeTimer = 0;
         boarChargeCd    = 0;
+        boarStunTimer   = 0;
         batDiving       = false;
         batReturning    = false;
         batDiveCd       = 0;
+        bearWindupTimer  = 0;
+        bearWindupActive = false;
         taunted      = false;
         tauntTimer   = 0;
+        justDied     = false;
+        dropPending  = false;
+    }
+
+    /**
+     * 強制立即重生（地圖重新進入時使用）。
+     * 若怪物已存活，只重置狀態；若已死亡，立刻復活。
+     */
+    public void forceRespawn() {
+        respawnTimer = 0;
+        deathTimer   = 0;
+        doRespawn();
     }
 
     // ── 掉落物生成 ───────────────────────────────────────────

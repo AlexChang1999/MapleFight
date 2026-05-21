@@ -312,4 +312,5 @@ public class VillageMap extends BaseMap {
     @Override public List<NPC>      getNPCs()       { return npcs; }
     @Override public int            getMapWidth()   { return MAP_WIDTH; }
     @Override public String         getMapId()      { return "village"; }
+    @Override public String         getMapName()    { return "新手村"; }
 }

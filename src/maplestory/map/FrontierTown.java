@@ -142,4 +142,6 @@ public class FrontierTown extends BaseMap {
     @Override public List<NPC>      getNPCs()      { return npcs; }
     @Override public int            getMapWidth()  { return MAP_WIDTH; }
     @Override public String         getMapId()     { return "frontier"; }
+    @Override public String         getMapName()   { return "前線前哨站"; }
+    @Override public int            getMinLevel()  { return 10; }
 }
