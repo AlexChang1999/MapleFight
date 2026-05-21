@@ -46,6 +46,7 @@ public class Player {
     // ── 位置 / 速度 ──────────────────────────────────────────
     private double x, y;
     private double velX, velY;
+    private double spawnX, spawnY;
 
     // ── 移動狀態 ─────────────────────────────────────────────
     private boolean movingLeft  = false;
@@ -59,9 +60,10 @@ public class Player {
     private int     attackComboIndex = 0; // 0=劈砍, 1=突刺（每次切換）
 
     // ── 梯子攀爬 ─────────────────────────────────────────────
-    private boolean movingUp   = false;
-    private boolean movingDown = false;
-    private boolean onLadder   = false;
+    private boolean movingUp      = false;
+    private boolean movingDown    = false;
+    private boolean onLadder      = false;
+    private Ladder  currentLadder = null;
     private static final double CLIMB_SPEED = 115;
 
     // ── 冰雪緩速 ─────────────────────────────────────────────
@@ -116,6 +118,8 @@ public class Player {
     public Player(double x, double y, Camera camera) {
         this.x      = x;
         this.y      = y;
+        this.spawnX = x;
+        this.spawnY = y;
         this.camera = camera;
 
         // 穿上新手預設裝備
@@ -155,7 +159,8 @@ public class Player {
             if (lad.getZone().intersects(
                     new Rectangle((int) x, (int) y, WIDTH, HEIGHT))) {
                 if (wasOnLadder || movingUp || movingDown) {
-                    onLadder = true;
+                    onLadder      = true;
+                    currentLadder = lad;
                     // 對齊梯子中心 X（平滑插值）
                     double tx = lad.getCenterX() - WIDTH / 2.0;
                     x += (tx - x) * Math.min(1.0, 14 * dt);
@@ -163,6 +168,7 @@ public class Player {
                 break;
             }
         }
+        if (!onLadder) currentLadder = null;
 
         // ── 位移 ─────────────────────────────────────────────
         if (onLadder) {
@@ -170,6 +176,22 @@ public class Player {
             if (movingUp)   velY = -CLIMB_SPEED;
             if (movingDown) velY =  CLIMB_SPEED;
             y += velY * dt;
+
+            // 抵達梯子頂端 → 踏上平台
+            if (currentLadder != null && y + HEIGHT <= currentLadder.getTopY()) {
+                y        = currentLadder.getTopY() - HEIGHT;
+                onLadder = false;
+                velY     = 0;
+                onGround = true;
+                currentLadder = null;
+            }
+            // 抵達梯子底端 → 落地離梯
+            else if (currentLadder != null && y + HEIGHT >= currentLadder.getBotY()) {
+                y        = currentLadder.getBotY() - HEIGHT;
+                onLadder = false;
+                velY     = 0;
+                currentLadder = null;
+            }
         } else {
             double spd = MOVE_SPEED * slowFactor;
             velX = 0;
@@ -184,6 +206,10 @@ public class Player {
         // ── 邊界 ─────────────────────────────────────────────
         if (x < 0) x = 0;
         if (x > map.getMapWidth() - WIDTH) x = map.getMapWidth() - WIDTH;
+        // 掉出地圖下方 → 回到出生點（700 = GAME_HEIGHT 500 + 緩衝 200）
+        if (y > 700) {
+            x = spawnX; y = spawnY; velX = 0; velY = 0;
+        }
 
         // ── 平台碰撞（爬梯時跳過） ───────────────────────────
         onGround = false;
@@ -360,9 +386,10 @@ public class Player {
         return true;
     }
 
-    /** 地圖切換時設定新位置 */
+    /** 地圖切換時設定新位置，同步更新出生點 */
     public void setPosition(double nx, double ny) {
         x = nx; y = ny; velX = 0; velY = 0;
+        spawnX = nx; spawnY = ny;
     }
 
     // ─────────────────────────────────────────────────────────

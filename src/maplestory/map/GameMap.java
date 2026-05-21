@@ -42,9 +42,9 @@ public class GameMap extends BaseMap {
     private void buildMap() {
         int gY = GamePanel.GAME_HEIGHT - 40; // 地面 Y 座標
 
-        // ── 地面（三段，中間有一個缺口製造變化感） ───────────
-        platforms.add(new Platform(   0, gY, 700, 40, new Color(80,  140, 60)));
-        platforms.add(new Platform( 720, gY, 700, 40, new Color(75,  130, 55)));
+        // ── 地面（三段，無縫連接） ─────────────────────────
+        platforms.add(new Platform(   0, gY, 720, 40, new Color(80,  140, 60)));
+        platforms.add(new Platform( 720, gY, 720, 40, new Color(75,  130, 55)));
         platforms.add(new Platform(1440, gY, 560, 40, new Color(80,  140, 60)));
 
         // ── 中層浮台（棕色木頭感） ────────────────────────────
