@@ -140,12 +140,20 @@ public class Player {
         this.mp = maxMp;
     }
 
-    /** 重新計算 maxHp / maxMp（換裝備後呼叫） */
+    /** 重新計算 maxHp / maxMp（換裝備後呼叫），含套裝加成 */
     private void recalculateStats() {
-        int hpBonus = equipments.values().stream().mapToInt(Equipment::getHpBonus).sum();
-        int mpBonus = equipments.values().stream().mapToInt(Equipment::getMpBonus).sum();
-        maxHp = 100 + str * 10 + hpBonus;
+        int hpBonus  = equipments.values().stream().mapToInt(Equipment::getHpBonus).sum();
+        int mpBonus  = equipments.values().stream().mapToInt(Equipment::getMpBonus).sum();
+        // 套裝加成 {str, def, atk, hp}
+        int[] setB   = Equipment.calcSetBonus(equipments.values());
+        maxHp = 100 + str * 10 + hpBonus + setB[3]; // setB[3] = 套裝 HP 加成
         maxMp =  30 + intel * 5 + mpBonus;
+    }
+
+    /** 取得套裝攻擊加成（Player.checkAttackHits 中使用） */
+    public int getSetAtkBonus() {
+        int[] b = Equipment.calcSetBonus(equipments.values());
+        return b[2];
     }
 
     // ─────────────────────────────────────────────────────────
@@ -294,14 +302,34 @@ public class Player {
         }
     }
 
-    /** 10 等自動轉職劍士 */
+    /**
+     * 升級時的職業解鎖提示（不再自動轉劍士）。
+     * 玩家需要到轉職所 NPC 手動選職業。
+     */
     private void checkJobUnlock() {
-        if (level >= 10 && job == null) {
-            job          = new Warrior();
-            jobName      = job.getDisplayName(); // "劍士"
-            levelUpTimer = 3.5; // 轉職時延長特效
-        }
+        // Lv.10 以上且未轉職：在 HUD 顯示「可轉職」提示
+        // 實際轉職由 VillageMap 的轉職所 NPC dialogue 觸發，
+        // 透過 GamePanel.handleDialogueConfirm("job_warrior"/"job_mage"/"job_archer") 完成。
     }
+
+    /**
+     * 手動設定職業（由 GamePanel 在轉職對話確認後呼叫）。
+     * @param newJob 新職業實例（Warrior / Mage / Archer）
+     */
+    public void changeJob(maplestory.job.Job newJob) {
+        if (job != null) return; // 已轉職，不能再轉
+        job          = newJob;
+        jobName      = newJob.getDisplayName();
+        levelUpTimer = 3.5;
+    }
+
+    /** 是否達到轉職條件（Lv.10 以上且尚未轉職） */
+    public boolean canChangeJob() { return level >= 10 && job == null; }
+
+    /** 總擊殺數（轉職任務計數用） */
+    private int totalMonstersKilled = 0;
+    public void addKill()           { totalMonstersKilled++; }
+    public int  getTotalKills()     { return totalMonstersKilled; }
 
     /** 受冰系攻擊：套用緩速狀態 */
     public void applySlow(double duration, double factor) {
@@ -329,11 +357,17 @@ public class Player {
 
         int atkBonus = equipments.containsKey(EquipSlot.WEAPON)
                        ? equipments.get(EquipSlot.WEAPON).getAtkBonus() : 0;
+        int setAtk   = getSetAtkBonus();
+
+        // 弓箭手鷹眼 buff 倍率
+        double hawkMult = 1.0;
+        if (job instanceof maplestory.job.Archer a) hawkMult = a.getDamageMultiplier();
 
         for (Monster m : monsters) {
             if (!m.isAlive() || m.isHitThisAttack()) continue;
             if (box.intersects(m.getBoundingBox())) {
-                m.takeDamage(BASE_DAMAGE + str * 2 + atkBonus);
+                int dmg = (int)((BASE_DAMAGE + str * 2 + atkBonus + setAtk) * hawkMult);
+                m.takeDamage(dmg);
                 m.setHitThisAttack(true);
             }
         }
@@ -341,6 +375,8 @@ public class Player {
     }
 
     public void takeDamage(int dmg) {
+        // 弓箭手被動閃避 10%
+        if (job instanceof maplestory.job.Archer a && a.tryDodge()) return;
         hp = Math.max(0, hp - dmg);
         timeSinceLastCombat = 0;
         hurtTimer = 0.5;
@@ -426,7 +462,7 @@ public class Player {
             g.setStroke(new BasicStroke(3f));
             g.drawOval(sx - 10, sy - 10, WIDTH + 20, HEIGHT + 20);
             g.setStroke(new BasicStroke(1f));
-            if (levelUpTimer > 2.5) { // 轉職時顯示文字
+            if (levelUpTimer > 2.5) {
                 g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
                 g.setColor(new Color(1f, 0.95f, 0.3f, alpha));
                 g.drawString("✦ 轉職：" + jobName + " ✦", sx - 30, sy - 16);
@@ -449,58 +485,113 @@ public class Player {
             g.fillRect(atkX, sy + 10, ATTACK_RANGE, HEIGHT - 10);
         }
 
+        // ── 裝備參照 ─────────────────────────────────────────
+        Equipment topEq     = equip(EquipSlot.TOP);
+        Equipment bottomEq  = equip(EquipSlot.BOTTOM);
+        Equipment helmetEq  = equip(EquipSlot.HELMET);
+        Equipment gloveEq   = equip(EquipSlot.GLOVES);
+        Equipment bootEq    = equip(EquipSlot.BOOTS);
+        Equipment capeEq    = equip(EquipSlot.CAPE);
+        Equipment earringEq = equip(EquipSlot.EARRING);
+
+        Color topColor    = topEq    != null ? topEq.getDisplayColor()    : new Color(190, 190, 210);
+        Color bottomColor = bottomEq != null ? bottomEq.getDisplayColor() : new Color(130, 130, 170);
+        Color gloveColor  = gloveEq  != null ? gloveEq.getDisplayColor()  : new Color(210, 180, 130);
+        Color bootColor   = bootEq   != null ? bootEq.getDisplayColor()   : new Color(150, 110, 75);
+
+        int legSwing = onGround && !attacking ? (int)(Math.sin(walkAnim) * 10) : 0;
+
         g.setStroke(new BasicStroke(2.2f));
 
-        // 取得裝備顏色
-        Color topColor    = equip(EquipSlot.TOP)    != null ? equip(EquipSlot.TOP).getDisplayColor()    : Color.WHITE;
-        Color bottomColor = equip(EquipSlot.BOTTOM) != null ? equip(EquipSlot.BOTTOM).getDisplayColor() : Color.WHITE;
-        Color gloveColor  = equip(EquipSlot.GLOVES) != null ? equip(EquipSlot.GLOVES).getDisplayColor() : Color.WHITE;
-        Color bootColor   = equip(EquipSlot.BOOTS)  != null ? equip(EquipSlot.BOOTS).getDisplayColor()  : Color.WHITE;
+        // ── 披風（在身體後方，最先畫）────────────────────────
+        if (capeEq != null) drawCape(g, cx, sy, capeEq.getDisplayColor());
 
-        // ── 頭 ───────────────────────────────────────────────
-        g.setColor(Color.WHITE);
-        g.drawOval(cx - 10, sy, 20, 20);
-
-        // 臉（眼睛 + 嘴）
-        int eyeDir = facingRight ? 3 : -3;
-        g.setColor(Color.BLACK);
-        g.setStroke(new BasicStroke(1.5f));
-        if (hurtTimer > 0) {
-            // 受傷：X 字眼睛 + 下彎嘴 + 眉毛下垂
-            int ex = cx + eyeDir - 1, ey = sy + 6;
-            g.drawLine(ex - 2, ey,     ex + 2, ey + 4); // ✕
-            g.drawLine(ex - 2, ey + 4, ex + 2, ey);
-            g.setColor(new Color(80, 0, 0));
-            g.drawArc(cx - 4, sy + 12, 8, 5, 0, -180); // 下彎嘴
-            // 眉毛下垂（斜向下）
-            g.setColor(Color.BLACK);
-            g.drawLine(cx + eyeDir - 3, sy + 4, cx + eyeDir + 1, sy + 6);
-        } else {
-            // 正常：圓點眼 + 微笑
-            g.fillOval(cx + eyeDir - 2, sy + 7, 3, 3);
-            g.setColor(new Color(30, 30, 30));
-            g.drawArc(cx - 4, sy + 11, 8, 5, 0, 180);  // 微笑嘴
-        }
-        g.setStroke(new BasicStroke(2.2f));
-
-        // ── 身體（上衣色）────────────────────────────────────
+        // ── 身體（上衣，填色圓角矩形）────────────────────────
         g.setColor(topColor);
-        g.drawLine(cx, sy + 20, cx, sy + 40);
+        g.fillRoundRect(cx - 8, sy + 20, 16, 20, 4, 4);
+        g.setColor(topColor.darker());
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawRoundRect(cx - 8, sy + 20, 16, 20, 4, 4);
+        g.setStroke(new BasicStroke(2.2f));
 
         // ── 手臂（含連擊動畫）────────────────────────────────
         drawArms(g, cx, sy, topColor, gloveColor);
 
-        // ── 腳（下褲色，走路對向擺動）────────────────────────
-        int legSwing = onGround && !attacking ? (int)(Math.sin(walkAnim) * 10) : 0;
+        // ── 腳（下褲色，走路對向擺動，有厚度）───────────────
+        g.setStroke(new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.setColor(bottomColor);
-        g.drawLine(cx, sy + 40, cx - 8 - legSwing, sy + 58);
-        g.drawLine(cx, sy + 40, cx + 8 + legSwing, sy + 58);
+        g.drawLine(cx - 2, sy + 40, cx - 8 - legSwing, sy + 56);
+        g.drawLine(cx + 2, sy + 40, cx + 8 + legSwing, sy + 56);
+        g.setStroke(new BasicStroke(2.2f));
 
-        // ── 靴子 ─────────────────────────────────────────────
-        g.setColor(bootColor);
-        g.fillRect(cx - 14 - legSwing, sy + 55, 10, 5);
-        g.fillRect(cx + 4  + legSwing, sy + 55, 10, 5);
+        // ── 靴子（梯形填色）──────────────────────────────────
+        boolean leftToe  = !facingRight; // 鞋尖方向
+        boolean rightToe = facingRight;
+        drawBoot(g, cx - 8 - legSwing, sy + 56, bootColor, leftToe);
+        drawBoot(g, cx + 8 + legSwing, sy + 56, bootColor, rightToe);
 
+        // ── 頭（實心圓，膚色）────────────────────────────────
+        Color skinColor = new Color(255, 215, 165);
+        g.setColor(skinColor);
+        g.fillOval(cx - 10, sy, 20, 20);
+        g.setColor(new Color(210, 160, 110));
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawOval(cx - 10, sy, 20, 20);
+        g.setStroke(new BasicStroke(2.2f));
+
+        // ── 頭盔（蓋在頭頂）──────────────────────────────────
+        if (helmetEq != null) drawHelmet(g, cx, sy, helmetEq.getDisplayColor());
+
+        // ── 耳環（頭側小圓）──────────────────────────────────
+        if (earringEq != null) {
+            int earX = facingRight ? cx + 9 : cx - 9;
+            g.setColor(earringEq.getDisplayColor());
+            g.fillOval(earX - 3, sy + 12, 6, 6);
+            g.setColor(earringEq.getDisplayColor().darker());
+            g.setStroke(new BasicStroke(1f));
+            g.drawOval(earX - 3, sy + 12, 6, 6);
+            g.setStroke(new BasicStroke(2.2f));
+        }
+
+        // ── 臉（眼白 + 瞳孔 + 嘴）───────────────────────────
+        int eyeDir = facingRight ? 4 : -4;
+        g.setStroke(new BasicStroke(1.5f));
+
+        if (hurtTimer > 0) {
+            // 受傷：X 字眼睛 + 下彎嘴 + 眉毛下垂
+            g.setColor(Color.BLACK);
+            int ex = cx + eyeDir - 1, ey = sy + 6;
+            g.drawLine(ex - 2, ey,     ex + 2, ey + 4);
+            g.drawLine(ex - 2, ey + 4, ex + 2, ey);
+            g.setColor(new Color(180, 30, 30));
+            g.drawArc(cx - 4, sy + 13, 8, 5, 0, -180);
+            g.setColor(Color.BLACK);
+            if (facingRight) g.drawLine(cx + eyeDir - 3, sy + 4, cx + eyeDir + 1, sy + 6);
+            else             g.drawLine(cx + eyeDir - 1, sy + 4, cx + eyeDir + 3, sy + 6);
+        } else if (attacking) {
+            // 攻擊：眼神銳利（縮瞳 + 眉毛下斜）
+            g.setColor(Color.WHITE);
+            g.fillOval(cx + eyeDir - 3, sy + 7, 6, 5);
+            g.setColor(new Color(40, 25, 10));
+            int pupilAtkX = facingRight ? cx + eyeDir - 1 : cx + eyeDir - 2;
+            g.fillOval(pupilAtkX, sy + 8, 3, 3);
+            g.setColor(Color.BLACK);
+            if (facingRight) g.drawLine(cx + eyeDir - 4, sy + 5, cx + eyeDir + 2, sy + 7);
+            else             g.drawLine(cx + eyeDir - 2, sy + 7, cx + eyeDir + 4, sy + 5);
+            g.setColor(new Color(80, 40, 20));
+            g.drawLine(cx - 3, sy + 14, cx + 3, sy + 14);
+        } else {
+            // 正常：眼白 + 深色瞳孔 + 高光 + 微笑
+            g.setColor(Color.WHITE);
+            g.fillOval(cx + eyeDir - 3, sy + 7, 6, 6);
+            g.setColor(new Color(40, 25, 10));
+            int pupilOffX = facingRight ? 1 : -1;
+            g.fillOval(cx + eyeDir - 2 + pupilOffX, sy + 8, 3, 4);
+            g.setColor(new Color(255, 255, 255, 180));
+            g.fillOval(cx + eyeDir - 1 + pupilOffX, sy + 8, 1, 1);
+            g.setColor(new Color(130, 65, 45));
+            g.drawArc(cx - 4, sy + 12, 8, 5, 0, 180);
+        }
         g.setStroke(new BasicStroke(1f));
 
         // ── 角色名稱（腳下 4px，黑邊白字）────────────────────
@@ -514,6 +605,49 @@ public class Player {
         g.drawString(name, nameX + 1, nameY + 1);
         g.setColor(Color.WHITE);
         g.drawString(name, nameX, nameY);
+    }
+
+    /** 靴子：梯形填色（鞋尖依面向延伸） */
+    private void drawBoot(Graphics2D g, int footX, int footY, Color color, boolean toeRight) {
+        int toe = toeRight ? 3 : -3;
+        int[] bx = {footX - 4 + toe, footX + 8 + toe, footX + 8, footX - 4};
+        int[] by = {footY,            footY,            footY + 7, footY + 7};
+        g.setColor(color);
+        g.fillPolygon(bx, by, 4);
+        g.setColor(color.darker());
+        g.setStroke(new BasicStroke(1f));
+        g.drawPolygon(bx, by, 4);
+        g.setStroke(new BasicStroke(2.2f));
+    }
+
+    /** 頭盔：弧形蓋住頭頂 + 兩側護頰 */
+    private void drawHelmet(Graphics2D g, int cx, int sy, Color color) {
+        g.setColor(color);
+        g.fillArc(cx - 13, sy - 5, 26, 26, 8, 164);
+        g.setColor(color.darker());
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawArc(cx - 13, sy - 5, 26, 26, 8, 164);
+        // 護頰
+        g.setColor(color);
+        g.fillRect(cx - 13, sy + 6, 4, 8);
+        g.fillRect(cx + 9,  sy + 6, 4, 8);
+        g.setColor(color.darker());
+        g.drawRect(cx - 13, sy + 6, 4, 8);
+        g.drawRect(cx + 9,  sy + 6, 4, 8);
+        g.setStroke(new BasicStroke(2.2f));
+    }
+
+    /** 披風：背後飄逸三角形 */
+    private void drawCape(Graphics2D g, int cx, int sy, Color color) {
+        int d = facingRight ? -1 : 1;
+        int[] px = {cx + d * 2, cx + d * 22, cx + d * 16};
+        int[] py = {sy + 22,    sy + 28,      sy + 46};
+        g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 215));
+        g.fillPolygon(px, py, 3);
+        g.setColor(color.darker());
+        g.setStroke(new BasicStroke(1f));
+        g.drawPolygon(px, py, 3);
+        g.setStroke(new BasicStroke(2.2f));
     }
 
     /**
@@ -646,22 +780,35 @@ public class Player {
         g.fillOval(frontArmEndX - 3, frontArmEndY - 3, 6, 6);
     }
 
-    /** 在手端繪製武器 */
+    /** 在手端繪製武器（填色幾何形狀） */
     private void drawWeapon(Graphics2D g, int handX, int handY,
                              int dir, int lenX, int lenY) {
         Equipment w = equip(EquipSlot.WEAPON);
         if (w == null) return;
 
-        g.setColor(w.getDisplayColor());
-        g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawLine(handX, handY,
-                   handX + dir * lenX,
-                   handY + lenY);
+        Color wColor = w.getDisplayColor();
+        int tipX = handX + dir * lenX;
+        int tipY = handY + lenY;
 
-        // 劍柄橫線
-        g.setColor(new Color(180, 140, 60));
-        g.setStroke(new BasicStroke(2f));
-        g.drawLine(handX - 3, handY + 1, handX + 3, handY - 3);
+        // 劍身（填色三角形，有厚度）
+        int[] bx = {handX + dir * 3, handX - dir * 2, tipX};
+        int[] by = {handY - 2, handY + 3, tipY};
+        g.setColor(wColor);
+        g.fillPolygon(bx, by, 3);
+        // 劍刃高光
+        g.setColor(wColor.brighter());
+        g.setStroke(new BasicStroke(1f));
+        g.drawLine(handX + dir * 3, handY - 2, tipX, tipY);
+
+        // 護手（十字形，金色）
+        g.setColor(new Color(210, 170, 55));
+        g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(handX - 5, handY + 1, handX + 5, handY + 1);
+
+        // 劍柄（深棕色）
+        g.setColor(new Color(115, 72, 35));
+        g.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(handX, handY + 1, handX - dir * 7, handY + 3);
 
         g.setStroke(new BasicStroke(2.2f));
     }
@@ -680,7 +827,6 @@ public class Player {
     public void setMovingRight(boolean v) { movingRight = v; }
     public void setMovingUp   (boolean v) { movingUp    = v; }
     public void setMovingDown (boolean v) { movingDown  = v; }
-    public boolean canChangeJob()         { return level >= 10 && job == null; }
 
     public double  getX()                  { return x; }
     public double  getY()                  { return y; }

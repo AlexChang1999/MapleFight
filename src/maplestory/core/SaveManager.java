@@ -3,6 +3,8 @@ package maplestory.core;
 import maplestory.entity.Player;
 import maplestory.item.Equipment;
 import maplestory.item.EquipSlot;
+import maplestory.job.Archer;
+import maplestory.job.Mage;
 import maplestory.job.Warrior;
 import maplestory.quest.Quest;
 import maplestory.quest.QuestManager;
@@ -89,6 +91,7 @@ public class SaveManager {
           .append("  \"maxMp\": "     ).append(p.getMaxMp()         ).append(",\n")
           .append("  \"jobId\": "     ).append(jsonStr(jobId)       ).append(",\n")
           .append("  \"gold\": "      ).append(p.getGold()          ).append(",\n")
+          .append("  \"totalKills\": ").append(p.getTotalKills()    ).append(",\n")
           .append("  \"mapId\": "     ).append(jsonStr(mapId)       );
         // ── 任務欄位 ─────────────────────────────────────────────
         if (qm != null) {
@@ -165,8 +168,14 @@ public class SaveManager {
             String jobId = data.getOrDefault("jobId", "none");
             switch (jobId) {
                 case "warrior" -> player.setJob(new Warrior());
+                case "mage"    -> player.setJob(new Mage());
+                case "archer"  -> player.setJob(new Archer());
                 default        -> player.setJob(null);
             }
+
+            // 總擊殺數還原
+            int kills = intOf(data, "totalKills", 0);
+            for (int i = 0; i < kills; i++) player.addKill();
 
             // 任務還原
             if (qm != null) {

@@ -63,12 +63,34 @@ public class ShopPanel {
     }
 
     public static List<ShopEntry> weaponShopEntries() {
-        return List.of(
-            ShopEntry.equipment(maplestory.item.Equipment::noviceHelmet,    150),
-            ShopEntry.equipment(maplestory.item.Equipment::leatherTop,      200),
-            ShopEntry.equipment(maplestory.item.Equipment::magicEarring,    250),
-            ShopEntry.equipment(maplestory.item.Equipment::reinforcedSword, 300),
-            ShopEntry.equipment(maplestory.item.Equipment::steelCape,       500)
+        return java.util.Arrays.asList(
+            // 散賣裝備
+            ShopEntry.equipment(maplestory.item.Equipment::noviceHelmet,      150),
+            ShopEntry.equipment(maplestory.item.Equipment::leatherTop,        200),
+            ShopEntry.equipment(maplestory.item.Equipment::magicEarring,      250),
+            ShopEntry.equipment(maplestory.item.Equipment::reinforcedSword,   300),
+            ShopEntry.equipment(maplestory.item.Equipment::steelCape,         500),
+            // 新手布衣套裝（Lv.1+）
+            ShopEntry.equipment(maplestory.item.Equipment::noviceHelmetSet,   120),
+            ShopEntry.equipment(maplestory.item.Equipment::noviceTopSet,       90),
+            ShopEntry.equipment(maplestory.item.Equipment::noviceBottomSet,    80),
+            ShopEntry.equipment(maplestory.item.Equipment::noviceGlovesSet,    60),
+            ShopEntry.equipment(maplestory.item.Equipment::noviceBootsSet,     60),
+            ShopEntry.equipment(maplestory.item.Equipment::noviceWeaponSet,   150),
+            ShopEntry.equipment(maplestory.item.Equipment::noviceCapeSet,      70)
+        );
+    }
+
+    /** 前線前哨站武器商店（Lv.10+ 青銅套裝） */
+    public static List<ShopEntry> frontierWeaponEntries() {
+        return java.util.Arrays.asList(
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeHelmet,     800),
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeTop,        650),
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeBottom,     550),
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeGloves,     400),
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeBoots,      400),
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeSword,     1200),
+            ShopEntry.equipment(maplestory.item.Equipment::bronzeCape,       500)
         );
     }
 

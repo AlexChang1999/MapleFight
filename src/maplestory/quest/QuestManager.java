@@ -194,6 +194,63 @@ public class QuestManager {
         }
     }
 
+    // ── 轉職所對話 ───────────────────────────────────────────────
+
+    /**
+     * 生成轉職所師傅的對話。
+     * masterId = "job_warrior" | "job_mage" | "job_archer"
+     */
+    public DialogueData getJobMasterDialogue(String masterId, maplestory.entity.Player player) {
+        String masterName = switch (masterId) {
+            case "job_warrior" -> "劍士師傅";
+            case "job_mage"    -> "法師師傅";
+            case "job_archer"  -> "弓手師傅";
+            default            -> "師傅";
+        };
+        String jobName = switch (masterId) {
+            case "job_warrior" -> "劍士";
+            case "job_mage"    -> "法師";
+            case "job_archer"  -> "弓箭手";
+            default            -> "冒險者";
+        };
+
+        if (player.getJob() != null) {
+            return new DialogueData(masterName,
+                "你已經是【" + player.getJobName() + "】了，繼續努力成長吧！")
+                .addOption("謝謝師傅！", "dismiss");
+        }
+
+        if (player.getLevel() < 10) {
+            return new DialogueData(masterName,
+                "成為【" + jobName + "】需要達到 Lv.10 以上。\n" +
+                "你目前是 Lv." + player.getLevel() + "，繼續修行吧！")
+                .addOption("好的", "dismiss");
+        }
+
+        if (player.getTotalKills() < 30) {
+            int remain = 30 - player.getTotalKills();
+            return new DialogueData(masterName,
+                "轉職為【" + jobName + "】需要證明你的實力。\n" +
+                "你還需要再擊殺 " + remain + " 隻怪物（共需 30 隻）。")
+                .addOption("繼續修行", "dismiss");
+        }
+
+        if (player.getGold() < 5000) {
+            return new DialogueData(masterName,
+                "你已達到實力要求！但轉職需要支付 5,000 金幣。\n" +
+                "你目前有 " + player.getGold() + " G，還差 " + (5000 - player.getGold()) + " G。")
+                .addOption("繼續努力", "dismiss");
+        }
+
+        // 滿足條件
+        return new DialogueData(masterName,
+            "你已達到轉職條件！\n" +
+            "轉職為【" + jobName + "】後，你將獲得職業技能與被動能力。\n" +
+            "費用：5,000 金幣。確定轉職嗎？")
+            .addOption("確定轉職！", masterId + "_confirm")
+            .addOption("再考慮看看", "dismiss");
+    }
+
     // ── 存讀檔輔助 ───────────────────────────────────────────────
 
     public Quest   getQuest(int id) { return quests[id]; }

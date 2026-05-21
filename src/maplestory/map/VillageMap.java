@@ -52,6 +52,17 @@ public class VillageMap extends BaseMap {
         // 武器鐵匠（紅色，面右，站在武器店前；shopId="weapon"）
         npcs.add(new NPC(990, groundY - NPC.HEIGHT,
                          "武器鐵匠", new Color(210, 80, 80), true, "weapon"));
+
+        // ── 轉職所 NPC（x=1180 的轉職所建築內） ──────────────
+        // 劍士師傅（深紅盔甲感，面左）
+        npcs.add(new NPC(1195, groundY - NPC.HEIGHT,
+                         "劍士師傅", new Color(180, 50, 50), false, null, "job_warrior"));
+        // 法師師傅（藍紫色，面左）
+        npcs.add(new NPC(1265, groundY - NPC.HEIGHT,
+                         "法師師傅", new Color(90, 60, 200), false, null, "job_mage"));
+        // 弓箭手師傅（翠綠色，面左）
+        npcs.add(new NPC(1335, groundY - NPC.HEIGHT,
+                         "弓手師傅", new Color(50, 170, 80), false, null, "job_archer"));
     }
 
     // ── 傳送門 ───────────────────────────────────────────────
@@ -169,11 +180,82 @@ public class VillageMap extends BaseMap {
         g.drawOval(sx + 4,  sy,      26, 26);
     }
 
-    /** 建築物（道具店、武器店、村長家） */
+    /** 建築物（道具店、武器店、村長家、轉職所） */
     private void drawBuildings(Graphics2D g, Camera camera) {
         drawHouse(g, camera, 150,  groundY - 90,  105, 90,  "村長家",  new Color(200, 175, 130));
         drawHouse(g, camera, 460,  groundY - 105, 120, 105, "道具店",  new Color(195, 165, 120));
         drawHouse(g, camera, 855,  groundY - 120, 135, 120, "武器店",  new Color(185, 155, 110));
+        drawJobHall(g, camera, 1155, groundY - 145, 220, 145);
+    }
+
+    /** 轉職所（大型建築，有三色旗幟） */
+    private void drawJobHall(Graphics2D g, Camera camera, int wx, int wy, int w, int h) {
+        int sx = (int)(wx - camera.getOffsetX());
+        int sy = (int)(wy - camera.getOffsetY());
+
+        // 牆壁（深藍灰）
+        Color wall = new Color(70, 80, 120);
+        g.setColor(wall);
+        g.fillRect(sx, sy, w, h);
+        g.setColor(wall.darker());
+        g.drawRect(sx, sy, w, h);
+
+        // 屋頂（大型三角，暗紫）
+        int[] rx = {sx - 12, sx + w / 2, sx + w + 12};
+        int[] ry = {sy, sy - 50, sy};
+        g.setColor(new Color(80, 50, 130));
+        g.fillPolygon(rx, ry, 3);
+        g.setColor(new Color(55, 30, 100));
+        g.drawPolygon(rx, ry, 3);
+
+        // 招牌橫條
+        g.setColor(new Color(40, 44, 80));
+        g.fillRect(sx + 10, sy + 12, w - 20, 28);
+        g.setColor(new Color(220, 200, 80));
+        g.setStroke(new java.awt.BasicStroke(1.5f));
+        g.drawRect(sx + 10, sy + 12, w - 20, 28);
+        g.setFont(new java.awt.Font("Microsoft JhengHei", java.awt.Font.BOLD, 14));
+        g.setColor(new Color(255, 230, 100));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        String sign = "轉 職 所";
+        g.drawString(sign, sx + (w - fm.stringWidth(sign)) / 2, sy + 32);
+        g.setStroke(new java.awt.BasicStroke(1f));
+
+        // 三扇拱形門（對應三個職業 NPC）
+        drawJobDoor(g, sx + 28,  sy, h, new Color(180, 50, 50),  "劍");
+        drawJobDoor(g, sx + 98,  sy, h, new Color(80, 60, 200),   "法");
+        drawJobDoor(g, sx + 168, sy, h, new Color(50, 160, 80),  "弓");
+
+        // 三色旗幟（屋頂尖端）
+        int flagX = sx + w / 2;
+        int flagY = sy - 50;
+        drawFlag(g, flagX - 18, flagY, new Color(200, 60, 60));
+        drawFlag(g, flagX,      flagY, new Color(80, 60, 200));
+        drawFlag(g, flagX + 18, flagY, new Color(50, 160, 80));
+    }
+
+    private void drawJobDoor(Graphics2D g, int dx, int sy, int h, Color color, String label) {
+        int doorW = 26, doorH = 38;
+        int doorX = dx;
+        int doorY = sy + h - doorH;
+        g.setColor(color.darker().darker());
+        g.fillRoundRect(doorX, doorY, doorW, doorH, doorW, doorW);
+        g.setColor(color);
+        g.setStroke(new java.awt.BasicStroke(2f));
+        g.drawRoundRect(doorX, doorY, doorW, doorH, doorW, doorW);
+        g.setFont(new java.awt.Font("Microsoft JhengHei", java.awt.Font.BOLD, 10));
+        g.setColor(color.brighter());
+        g.drawString(label, doorX + 8, doorY + 15);
+        g.setStroke(new java.awt.BasicStroke(1f));
+    }
+
+    private void drawFlag(Graphics2D g, int fx, int fy, Color color) {
+        g.setColor(new Color(120, 100, 60));
+        g.drawLine(fx, fy, fx, fy - 16);
+        int[] px = {fx, fx + 10, fx};
+        int[] py = {fy - 16, fy - 11, fy - 6};
+        g.setColor(color);
+        g.fillPolygon(px, py, 3);
     }
 
     private void drawHouse(Graphics2D g, Camera camera,

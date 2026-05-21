@@ -409,11 +409,17 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
         if (nearShopNpc != null) {
-            String shopId = nearShopNpc.getShopId();
+            String shopId   = nearShopNpc.getShopId();
+            String curMapId = mapManager.getCurrentMap().getMapId();
             if ("item".equals(shopId)) {
                 shopPanel.open("道具商人的商店", ShopPanel.itemShopEntries(), "item");
             } else if ("weapon".equals(shopId)) {
-                shopPanel.open("武器鐵匠的商店", ShopPanel.weaponShopEntries(), "weapon");
+                // 前線前哨站或冰原驛站使用進階裝備清單
+                boolean advanced = "frontier".equals(curMapId) || "icepost".equals(curMapId);
+                java.util.List<maplestory.item.ShopEntry> entries = advanced
+                    ? ShopPanel.frontierWeaponEntries()
+                    : ShopPanel.weaponShopEntries();
+                shopPanel.open("武器鐵匠的商店", entries, "weapon");
             }
             activePanel = "shop";
         }
@@ -421,12 +427,19 @@ public class GamePanel extends JPanel implements Runnable {
 
     /** 開啟 NPC 對話面板 */
     private void openDialogue(NPC npc) {
-        if ("elder".equals(npc.getDialogueId()) ||
-            "frontier_elder".equals(npc.getDialogueId())) {
-            QuestManager.DialogueData dd = questManager.getElderDialogue();
-            dialoguePanel.open(dd.npcName, dd.text, dd.options, dd.actionIds);
-            activePanel = "dialogue";
+        String did = npc.getDialogueId();
+        if (did == null) return;
+
+        QuestManager.DialogueData dd;
+        if ("elder".equals(did) || "frontier_elder".equals(did)) {
+            dd = questManager.getElderDialogue();
+        } else if (did.startsWith("job_")) {
+            dd = questManager.getJobMasterDialogue(did, player);
+        } else {
+            return;
         }
+        dialoguePanel.open(dd.npcName, dd.text, dd.options, dd.actionIds);
+        activePanel = "dialogue";
     }
 
     /** 處理對話選項確認 */
@@ -435,6 +448,7 @@ public class GamePanel extends JPanel implements Runnable {
             activePanel = null;
             return;
         }
+        // 任務相關
         if (actionId.startsWith("accept_")) {
             int id = Integer.parseInt(actionId.substring(7));
             questManager.acceptQuest(id);
@@ -451,6 +465,27 @@ public class GamePanel extends JPanel implements Runnable {
             int id = Integer.parseInt(actionId.substring(8));
             questManager.abandonQuest(id);
             if (nearDialogueNpc != null) openDialogue(nearDialogueNpc);
+            return;
+        }
+        // 轉職確認
+        if (actionId.endsWith("_confirm") && actionId.startsWith("job_")) {
+            String jobType = actionId.replace("_confirm", "");
+            if (player.canChangeJob() && player.getGold() >= 5000
+                    && player.getTotalKills() >= 30) {
+                player.spendGold(5000);
+                maplestory.job.Job newJob = switch (jobType) {
+                    case "job_warrior" -> new maplestory.job.Warrior();
+                    case "job_mage"    -> new maplestory.job.Mage();
+                    case "job_archer"  -> new maplestory.job.Archer();
+                    default            -> null;
+                };
+                if (newJob != null) {
+                    player.changeJob(newJob);
+                    maplestory.audio.SoundManager.get()
+                        .playSFX(maplestory.audio.SFX.LEVEL_UP);
+                }
+            }
+            activePanel = null;
             return;
         }
         activePanel = null;
@@ -604,6 +639,7 @@ public class GamePanel extends JPanel implements Runnable {
                 m.update(dt, currentMap, player);
                 if (m.pollJustDied()) {
                     player.gainExp(m.getExpReward());
+                    player.addKill();
                     questManager.onMonsterKilled(m.getType());
                 }
                 if (m.pollDropPending()) {
