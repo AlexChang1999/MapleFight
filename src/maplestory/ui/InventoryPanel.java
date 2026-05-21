@@ -83,7 +83,7 @@ public class InventoryPanel {
         // ── 底部說明 ─────────────────────────────────────────
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         g.setColor(new Color(110, 120, 165));
-        g.drawString("[I] 關閉  消耗品：點擊使用", PX + 18, PY + PH - 10);
+        g.drawString("[I] 關閉  消耗品：點擊使用 / 懸停+1-5指派快捷欄", PX + 18, PY + PH - 10);
 
         // ── 使用道具通知 ─────────────────────────────────────
         if (noticeTimer > 0) {
@@ -228,7 +228,7 @@ public class InventoryPanel {
         if (activeTab == Tab.CONSUMABLE) {
             g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
             g.setColor(new Color(100, 200, 120));
-            g.drawString("點擊使用", tx + 8, ty + 90);
+            g.drawString("左鍵使用 / 1-5鍵指派快捷欄", tx + 8, ty + 90);
         }
     }
 
@@ -323,5 +323,12 @@ public class InventoryPanel {
             case EQUIPMENT  -> inv.getEquipments();
             case MISC       -> java.util.Collections.emptyList();
         };
+    }
+
+    /** 回傳目前懸停格位的消耗品（僅消耗品分頁有效；否則回傳 null） */
+    public Consumable getHoveredConsumable(Inventory inv) {
+        if (activeTab != Tab.CONSUMABLE || hoveredCell < 0) return null;
+        List<Consumable> cons = inv.getConsumables();
+        return hoveredCell < cons.size() ? cons.get(hoveredCell) : null;
     }
 }

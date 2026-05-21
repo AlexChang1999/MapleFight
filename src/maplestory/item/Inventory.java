@@ -60,4 +60,12 @@ public class Inventory {
 
     public boolean isConsumableFull() { return consumables.size() >= MAX_PER_TAB; }
     public boolean isEquipmentFull()  { return equipments.size()  >= MAX_PER_TAB; }
+
+    /** 按名稱查找消耗品，回傳第一個符合的索引；找不到回傳 -1 */
+    public int findConsumable(String name) {
+        for (int i = 0; i < consumables.size(); i++) {
+            if (consumables.get(i).getName().equals(name)) return i;
+        }
+        return -1;
+    }
 }

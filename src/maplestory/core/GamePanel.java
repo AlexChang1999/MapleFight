@@ -13,6 +13,7 @@ import maplestory.map.BaseMap;
 import maplestory.quest.QuestManager;
 import maplestory.ui.DialoguePanel;
 import maplestory.ui.EquipPanel;
+import maplestory.ui.Hotbar;
 import maplestory.ui.InventoryPanel;
 import maplestory.ui.KeyBindingPanel;
 import maplestory.ui.PauseMenu;
@@ -73,6 +74,9 @@ public class GamePanel extends JPanel implements Runnable {
     private final KeyBindingPanel keybindPanel;
     /** 目前顯示的面板（null = 無）。可選值："status"|"skill"|"equip"|"inventory"|"shop"|"keybind" */
     private String activePanel = null;
+
+    // ── Hotbar（快捷欄）────────────────────────────────────────
+    private final Hotbar hotbar = new Hotbar();
 
     // ── NPC 互動 ─────────────────────────────────────────────
     /** 目前玩家旁邊可互動的商店 NPC（null = 無） */
@@ -274,6 +278,27 @@ public class GamePanel extends JPanel implements Runnable {
                     return;
                 }
 
+                // ── 快捷欄 1-5（固定鍵，不可改綁）────────────
+                if (kc >= KeyEvent.VK_1 && kc <= KeyEvent.VK_5) {
+                    int slot = kc - KeyEvent.VK_1;
+                    if ("inventory".equals(activePanel)) {
+                        // 背包消耗品懸停中 → 指派到快捷欄
+                        maplestory.item.Consumable hovered =
+                            inventoryPanel.getHoveredConsumable(player.getInventory());
+                        if (hovered != null) {
+                            hotbar.assign(slot, hovered);
+                            pickupNotice      = "已指派「" + hovered.getName() + "」到快捷欄 " + (slot + 1);
+                            pickupNoticeTimer = 1.5;
+                        }
+                    } else if (activePanel == null) {
+                        // 正常遊戲中 → 使用快捷欄物品
+                        String result = hotbar.use(slot, player);
+                        handleConsumableResult(result);
+                    }
+                    return;
+                }
+
+                if (action == null) return;
                 switch (action) {
                     case UI_STATUS    -> togglePanel("status");
                     case UI_SKILL     -> togglePanel("skill");
@@ -841,6 +866,9 @@ public class GamePanel extends JPanel implements Runnable {
 
         // ── 中右區：技能槽（Q/W）─────────────────────────
         if (player.getJob() != null) drawSkillSlots(g, hudY);
+
+        // ── 快捷欄（HUD 中央，y+48）──────────────────────
+        hotbar.draw(g, hudY);
 
         // ── 右區：四個快捷按鈕（71px×22px，間距 3px）──────
         // 共 4×71 + 3×3 = 284+9 = 293px，起點 x = 800-293 = 507
