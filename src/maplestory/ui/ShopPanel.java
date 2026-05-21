@@ -51,11 +51,14 @@ public class ShopPanel {
 
     public static List<ShopEntry> itemShopEntries() {
         return List.of(
-            ShopEntry.consumable(maplestory.item.Consumable::redPotion,    20),
-            ShopEntry.consumable(maplestory.item.Consumable::bluePotion,   25),
-            ShopEntry.consumable(maplestory.item.Consumable::orangePotion, 80),
-            ShopEntry.consumable(maplestory.item.Consumable::manaElixir,  100),
-            ShopEntry.consumable(maplestory.item.Consumable::elixir,      200)
+            ShopEntry.consumable(maplestory.item.Consumable::redPotion,          20),
+            ShopEntry.consumable(maplestory.item.Consumable::bluePotion,         25),
+            ShopEntry.consumable(maplestory.item.Consumable::orangePotion,       80),
+            ShopEntry.consumable(maplestory.item.Consumable::manaElixir,        100),
+            ShopEntry.consumable(maplestory.item.Consumable::elixir,            200),
+            ShopEntry.consumable(maplestory.item.Consumable::returnToVillage,   500),
+            ShopEntry.consumable(maplestory.item.Consumable::returnToFrontier,  800),
+            ShopEntry.consumable(maplestory.item.Consumable::returnToBattle,   1200)
         );
     }
 

@@ -236,9 +236,9 @@ public class InventoryPanel {
 
     /**
      * 處理滑鼠點擊（邏輯座標）。
-     * @return 若使用了消耗品則回傳 true（供 GamePanel 顯示通知）
+     * @return 消耗品使用結果字串（null = 無動作；"TELEPORT:xxx" = 傳送）
      */
-    public boolean mouseClicked(int lx, int ly, Player player) {
+    public String mouseClicked(int lx, int ly, Player player) {
         // 分頁點擊
         int[][] tabBounds = {
             {PX + 18, PY + 58, 92, 22},
@@ -251,13 +251,13 @@ public class InventoryPanel {
             if (lx >= b[0] && lx < b[0] + b[2] && ly >= b[1] && ly < b[1] + b[3]) {
                 activeTab = tabs[i];
                 selectedCell = -1;
-                return false;
+                return null;
             }
         }
 
         // 格子點擊
         int cellIdx = cellAt(lx, ly);
-        if (cellIdx < 0) return false;
+        if (cellIdx < 0) return null;
         selectedCell = cellIdx;
 
         if (activeTab == Tab.CONSUMABLE) {
@@ -266,18 +266,24 @@ public class InventoryPanel {
                 Consumable c = player.getInventory().useConsumable(cellIdx);
                 if (c != null) {
                     String result = c.apply(player);
+                    if (result.startsWith("TELEPORT:")) {
+                        notice      = "使用：" + c.getName();
+                        noticeTimer = 1.5;
+                        selectedCell = -1;
+                        return result; // 傳送卷軸：讓 GamePanel 處理
+                    }
                     if (!result.isEmpty()) {
                         notice      = c.getName() + "：" + result;
                         noticeTimer = 2.0;
                     }
                     selectedCell = -1;
-                    return true;
+                    return result;
                 }
             }
         } else if (activeTab == Tab.EQUIPMENT) {
             List<Equipment> equips = player.getInventory().getEquipments();
             if (cellIdx < equips.size()) {
-                Equipment toEquip = equips.get(cellIdx); // 先取名字（移除前）
+                Equipment toEquip = equips.get(cellIdx);
                 boolean ok = player.equipFromInventory(cellIdx);
                 if (ok) {
                     notice      = "裝備：" + toEquip.getName();
@@ -286,7 +292,7 @@ public class InventoryPanel {
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /** 滑鼠移動（邏輯座標） */

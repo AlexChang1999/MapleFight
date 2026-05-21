@@ -74,8 +74,8 @@ public class NoviceMap3 extends BaseMap {
         ));
         portals.add(new Portal(
             MAP_WIDTH - 68, GROUND_Y - Portal.HEIGHT,
-            "battle", 150, GROUND_Y - 80,
-            "冒險平原(Lv.10)", 10
+            "frontier", 80, GROUND_Y - 80,
+            "前線前哨站(Lv.10)", 10
         ));
     }
 

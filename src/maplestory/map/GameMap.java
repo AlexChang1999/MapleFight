@@ -23,18 +23,18 @@ public class GameMap extends BaseMap {
         buildMap();
         int groundY = GamePanel.GAME_HEIGHT - 40;
 
-        // 左側傳送門 → 回村莊（無等級限制）
+        // 左側傳送門 → 前線前哨站（無等級限制）
         portals.add(new Portal(
             30, groundY - Portal.HEIGHT,
-            "village", 1440, groundY - 80,
-            "回村莊", 1
+            "frontier", FrontierTown.MAP_WIDTH - 68, groundY - 80,
+            "回前哨站", 1
         ));
 
-        // 右側傳送門 → 極地冰原（需要 Lv.15）
+        // 右側傳送門 → 冰原驛站（需要 Lv.15）
         portals.add(new Portal(
             MAP_WIDTH - 68, groundY - Portal.HEIGHT,
-            "arctic", 120, groundY - 90,
-            "極地冰原(Lv.15)", 15
+            "icepost", 80, groundY - 80,
+            "冰原驛站(Lv.15)", 15
         ));
     }
 

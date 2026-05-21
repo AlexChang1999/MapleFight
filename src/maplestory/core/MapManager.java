@@ -3,7 +3,9 @@ package maplestory.core;
 import maplestory.entity.Player;
 import maplestory.map.ArcticMap;
 import maplestory.map.BaseMap;
+import maplestory.map.FrontierTown;
 import maplestory.map.GameMap;
+import maplestory.map.IcePostTown;
 import maplestory.map.NoviceMap1;
 import maplestory.map.NoviceMap2;
 import maplestory.map.NoviceMap3;
@@ -33,12 +35,14 @@ public class MapManager {
     private double  levelBlockedTimer   = 0;
 
     public MapManager() {
-        maps.put("village", new VillageMap());
-        maps.put("novice1", new NoviceMap1());
-        maps.put("novice2", new NoviceMap2());
-        maps.put("novice3", new NoviceMap3());
-        maps.put("battle",  new GameMap());
-        maps.put("arctic",  new ArcticMap());
+        maps.put("village",  new VillageMap());
+        maps.put("novice1",  new NoviceMap1());
+        maps.put("novice2",  new NoviceMap2());
+        maps.put("novice3",  new NoviceMap3());
+        maps.put("frontier", new FrontierTown());
+        maps.put("battle",   new GameMap());
+        maps.put("icepost",  new IcePostTown());
+        maps.put("arctic",   new ArcticMap());
         currentMap = maps.get("village"); // ← 遊戲從村莊開始
     }
 
