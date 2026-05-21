@@ -1,5 +1,5 @@
 @echo off
-cd /d H:\MapleGame
+cd /d "%~dp0"
 
 if not exist out mkdir out
 if not exist save mkdir save
