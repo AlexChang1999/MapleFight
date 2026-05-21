@@ -12,3 +12,7 @@ Desktop.ini
 
 # 暫存列表
 sources.txt
+java_files.txt
+
+# 存檔（玩家個人資料，不上傳）
+save/
