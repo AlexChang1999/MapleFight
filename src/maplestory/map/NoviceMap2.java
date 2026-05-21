@@ -39,14 +39,8 @@ public class NoviceMap2 extends BaseMap {
         Color dkWood = new Color(104, 72, 40);
 
 
-        // 地面（無縫連接）
-        platforms.add(new Platform(   0, GROUND_Y, 742, 40, grass));
-        platforms.add(new Platform( 742, GROUND_Y, 696, 40, new Color(52, 122, 44)));
-        platforms.add(new Platform(1438, GROUND_Y, 562, 40, grass));
-=======
-        // 地面（完整一條，消除缺口）
+    // 地面（完整一條，消除缺口）
         platforms.add(new Platform(0, GROUND_Y, MAP_WIDTH, 40, grass));
->>>>>>> origin/main
 
         // 中層
         platforms.add(new Platform( 148, GROUND_Y - 132, 172, 18, wood));
