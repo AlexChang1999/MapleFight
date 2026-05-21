@@ -4,6 +4,8 @@ import maplestory.entity.Player;
 import maplestory.item.Equipment;
 import maplestory.item.EquipSlot;
 import maplestory.job.Warrior;
+import maplestory.quest.Quest;
+import maplestory.quest.QuestManager;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -47,41 +49,63 @@ public class SaveManager {
     // ── 存檔 ─────────────────────────────────────────────────
 
     /**
-     * 將玩家資料儲存至指定槽位。
-     * @param slot       1~3
-     * @param player     玩家物件
-     * @param currentMapId  目前所在地圖 ID
+     * 將玩家資料儲存至指定槽位（含任務進度）。
+     * @param slot         1~3
+     * @param player       玩家物件
+     * @param currentMapId 目前所在地圖 ID
+     * @param qm           任務管理器（null = 不存任務）
      */
-    public static void save(int slot, Player player, String currentMapId) {
+    public static void save(int slot, Player player, String currentMapId, QuestManager qm) {
         try {
             Files.createDirectories(Paths.get(SAVE_DIR));
-            String json = buildJson(player, currentMapId);
+            String json = buildJson(player, currentMapId, qm);
             Files.writeString(slotPath(slot), json, StandardCharsets.UTF_8);
         } catch (IOException e) {
             System.err.println("[SaveManager] 存檔失敗：" + e.getMessage());
         }
     }
 
+    /** 向下相容（不帶 QuestManager） */
+    public static void save(int slot, Player player, String currentMapId) {
+        save(slot, player, currentMapId, null);
+    }
+
     /** 建構 JSON 字串 */
-    private static String buildJson(Player p, String mapId) {
+    private static String buildJson(Player p, String mapId, QuestManager qm) {
         String jobId = (p.getJob() == null) ? "none" : p.getJob().getJobId();
-        return "{\n"
-             + "  \"name\": "      + jsonStr(p.getName())  + ",\n"
-             + "  \"level\": "     + p.getLevel()          + ",\n"
-             + "  \"exp\": "       + p.getExp()             + ",\n"
-             + "  \"expToNext\": " + p.getExpToNextLevel()  + ",\n"
-             + "  \"str\": "       + p.getStr()             + ",\n"
-             + "  \"dex\": "       + p.getDex()             + ",\n"
-             + "  \"intel\": "     + p.getIntel()           + ",\n"
-             + "  \"luk\": "       + p.getLuk()             + ",\n"
-             + "  \"hp\": "        + p.getHp()              + ",\n"
-             + "  \"maxHp\": "     + p.getMaxHp()           + ",\n"
-             + "  \"mp\": "        + p.getMp()              + ",\n"
-             + "  \"maxMp\": "     + p.getMaxMp()           + ",\n"
-             + "  \"jobId\": "     + jsonStr(jobId)         + ",\n"
-             + "  \"gold\": "      + p.getGold()            + ",\n"
-             + "  \"mapId\": "     + jsonStr(mapId)         + "\n"
-             + "}";
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n")
+          .append("  \"name\": "      ).append(jsonStr(p.getName()) ).append(",\n")
+          .append("  \"level\": "     ).append(p.getLevel()         ).append(",\n")
+          .append("  \"exp\": "       ).append(p.getExp()           ).append(",\n")
+          .append("  \"expToNext\": " ).append(p.getExpToNextLevel()).append(",\n")
+          .append("  \"str\": "       ).append(p.getStr()           ).append(",\n")
+          .append("  \"dex\": "       ).append(p.getDex()           ).append(",\n")
+          .append("  \"intel\": "     ).append(p.getIntel()         ).append(",\n")
+          .append("  \"luk\": "       ).append(p.getLuk()           ).append(",\n")
+          .append("  \"hp\": "        ).append(p.getHp()            ).append(",\n")
+          .append("  \"maxHp\": "     ).append(p.getMaxHp()         ).append(",\n")
+          .append("  \"mp\": "        ).append(p.getMp()            ).append(",\n")
+          .append("  \"maxMp\": "     ).append(p.getMaxMp()         ).append(",\n")
+          .append("  \"jobId\": "     ).append(jsonStr(jobId)       ).append(",\n")
+          .append("  \"gold\": "      ).append(p.getGold()          ).append(",\n")
+          .append("  \"mapId\": "     ).append(jsonStr(mapId)       );
+        // ── 任務欄位 ─────────────────────────────────────────────
+        if (qm != null) {
+            for (int i = 0; i < qm.getQuestCount(); i++) {
+                Quest q = qm.getQuest(i);
+                sb.append(",\n")
+                  .append("  \"quest").append(i).append("_state\": ")
+                  .append(q.getState().ordinal());
+                if (q.type == Quest.Type.KILL) {
+                    sb.append(",\n")
+                      .append("  \"quest").append(i).append("_kills\": ")
+                      .append(q.getProgress());
+                }
+            }
+        }
+        sb.append("\n}");
+        return sb.toString();
     }
 
     private static String jsonStr(String s) {
@@ -113,10 +137,11 @@ public class SaveManager {
     // ── 讀取並套用至 Player ───────────────────────────────────
 
     /**
-     * 讀取存檔並還原玩家狀態。
+     * 讀取存檔並還原玩家狀態（含任務進度）。
+     * @param qm 任務管理器（null = 不還原任務）
      * @return 存檔中記錄的地圖 ID（讓 MapManager 切換地圖用）
      */
-    public static String load(int slot, Player player) {
+    public static String load(int slot, Player player, QuestManager qm) {
         if (!exists(slot)) return "village";
         try {
             String json = Files.readString(slotPath(slot), StandardCharsets.UTF_8);
@@ -140,8 +165,24 @@ public class SaveManager {
             String jobId = data.getOrDefault("jobId", "none");
             switch (jobId) {
                 case "warrior" -> player.setJob(new Warrior());
-                // 未來新增職業在此補充 case
                 default        -> player.setJob(null);
+            }
+
+            // 任務還原
+            if (qm != null) {
+                for (int i = 0; i < qm.getQuestCount(); i++) {
+                    Quest q = qm.getQuest(i);
+                    int stateOrd = intOf(data, "quest" + i + "_state", 0);
+                    Quest.State[] states = Quest.State.values();
+                    if (stateOrd >= 0 && stateOrd < states.length) {
+                        q.setState(states[stateOrd]);
+                    }
+                    if (q.type == Quest.Type.KILL) {
+                        q.setProgress(intOf(data, "quest" + i + "_kills", 0));
+                    } else {
+                        q.setProgress(intOf(data, "quest" + i + "_state", 0) >= 2 ? 1 : 0);
+                    }
+                }
             }
 
             return data.getOrDefault("mapId", "village");
@@ -150,6 +191,11 @@ public class SaveManager {
             System.err.println("[SaveManager] 讀取失敗：" + e.getMessage());
             return "village";
         }
+    }
+
+    /** 向下相容（不帶 QuestManager） */
+    public static String load(int slot, Player player) {
+        return load(slot, player, null);
     }
 
     /** 刪除存檔 */

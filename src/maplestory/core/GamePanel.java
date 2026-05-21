@@ -10,6 +10,8 @@ import maplestory.job.Skill;
 import maplestory.keybind.ActionType;
 import maplestory.keybind.KeyBindingManager;
 import maplestory.map.BaseMap;
+import maplestory.quest.QuestManager;
+import maplestory.ui.DialoguePanel;
 import maplestory.ui.EquipPanel;
 import maplestory.ui.InventoryPanel;
 import maplestory.ui.KeyBindingPanel;
@@ -73,9 +75,17 @@ public class GamePanel extends JPanel implements Runnable {
     private String activePanel = null;
 
     // ── NPC 互動 ─────────────────────────────────────────────
-    /** 目前玩家旁邊可互動的 NPC（null = 無） */
-    private NPC nearShopNpc = null;
+    /** 目前玩家旁邊可互動的商店 NPC（null = 無） */
+    private NPC nearShopNpc     = null;
+    /** 目前玩家旁邊可互動的對話 NPC（null = 無） */
+    private NPC nearDialogueNpc = null;
     private static final double NPC_INTERACT_RANGE = 80;
+
+    // ── 任務系統 ─────────────────────────────────────────────
+    private final QuestManager questManager = new QuestManager();
+
+    // ── 對話面板 ─────────────────────────────────────────────
+    private final DialoguePanel dialoguePanel = new DialoguePanel();
 
     // ── 掉落物 ───────────────────────────────────────────────
     private final List<DropItem> drops = new ArrayList<>();
@@ -113,7 +123,7 @@ public class GamePanel extends JPanel implements Runnable {
         if (playerName != null) {
             player.setName(playerName);
         } else {
-            String mapId = SaveManager.load(slot, player);
+            String mapId = SaveManager.load(slot, player, questManager);
             mapManager.switchMap(mapId, 200, 350, player);
             camera.snapTo(player.getX(), player.getY(), mapManager.getCurrentMap().getMapWidth());
         }
@@ -122,63 +132,111 @@ public class GamePanel extends JPanel implements Runnable {
         statusPanel  = new StatusPanel();
         keybindPanel = new KeyBindingPanel(keyBindings);
 
-        // ── 怪物初始化：新手森林一區（史萊姆 x6）────────────
+        // ── 新手森林一區（史萊姆 ×12）────────────────────────
         novice1Monsters.add(new Monster( 350, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster( 580, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster( 820, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster(1050, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster(1280, 300, MonsterType.SLIME));
-        novice1Monsters.add(new Monster(1520, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 490, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 630, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 770, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 920, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1060, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1200, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1340, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1480, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster(1620, 300, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 430, 220, MonsterType.SLIME));
+        novice1Monsters.add(new Monster( 980, 220, MonsterType.SLIME));
 
-        // ── 新手森林二區（史萊姆 x4 + 蝙蝠 x4）────────────
-        novice2Monsters.add(new Monster( 320, 300, MonsterType.SLIME));
+        // ── 新手森林二區（史萊姆 ×8 + 蝙蝠 ×8）────────────
+        novice2Monsters.add(new Monster( 300, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 470, 300, MonsterType.SLIME));
         novice2Monsters.add(new Monster( 680, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 900, 300, MonsterType.SLIME));
         novice2Monsters.add(new Monster(1100, 300, MonsterType.SLIME));
-        novice2Monsters.add(new Monster(1550, 300, MonsterType.SLIME));
-        novice2Monsters.add(new Monster( 480, 200, MonsterType.BAT));
-        novice2Monsters.add(new Monster( 850, 200, MonsterType.BAT));
-        novice2Monsters.add(new Monster(1280, 200, MonsterType.BAT));
-        novice2Monsters.add(new Monster(1700, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1330, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster(1560, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster(1780, 300, MonsterType.SLIME));
+        novice2Monsters.add(new Monster( 400, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster( 590, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster( 810, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1010, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1240, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1440, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1670, 200, MonsterType.BAT));
+        novice2Monsters.add(new Monster(1880, 200, MonsterType.BAT));
 
-        // ── 新手森林三區（野豬 x4 + 蝙蝠 x5）────────────────
-        novice3Monsters.add(new Monster( 400, 290, MonsterType.BOAR));
-        novice3Monsters.add(new Monster( 750, 290, MonsterType.BOAR));
-        novice3Monsters.add(new Monster(1200, 290, MonsterType.BOAR));
-        novice3Monsters.add(new Monster(1700, 290, MonsterType.BOAR));
-        novice3Monsters.add(new Monster( 560, 200, MonsterType.BAT));
-        novice3Monsters.add(new Monster( 920, 200, MonsterType.BAT));
-        novice3Monsters.add(new Monster(1380, 200, MonsterType.BAT));
-        novice3Monsters.add(new Monster(1850, 200, MonsterType.BAT));
-        novice3Monsters.add(new Monster( 200, 200, MonsterType.BAT));
+        // ── 新手森林三區（野豬 ×8 + 蝙蝠 ×10）──────────────
+        novice3Monsters.add(new Monster( 350, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster( 540, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster( 780, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster(1010, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster(1250, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster(1490, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster(1720, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster(1960, 290, MonsterType.BOAR));
+        novice3Monsters.add(new Monster( 280, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster( 470, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster( 660, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster( 870, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1100, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1330, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1560, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(1790, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster(2020, 200, MonsterType.BAT));
+        novice3Monsters.add(new Monster( 180, 200, MonsterType.BAT));
 
-        // ── 冒險平原（史萊姆 x5 + 野豬 x4 + 蝙蝠 x4）───────
-        battleMonsters.add(new Monster( 350, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster( 600, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster( 900, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster(1200, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster(1550, 300, MonsterType.SLIME));
-        battleMonsters.add(new Monster( 480, 290, MonsterType.BOAR));
-        battleMonsters.add(new Monster( 800, 290, MonsterType.BOAR));
-        battleMonsters.add(new Monster(1100, 290, MonsterType.BOAR));
-        battleMonsters.add(new Monster(1450, 290, MonsterType.BOAR));
-        battleMonsters.add(new Monster( 550, 200, MonsterType.BAT));
-        battleMonsters.add(new Monster( 950, 200, MonsterType.BAT));
-        battleMonsters.add(new Monster(1300, 200, MonsterType.BAT));
-        battleMonsters.add(new Monster(1750, 200, MonsterType.BAT));
+        // ── 冒險平原（史萊姆 ×10 + 野豬 ×8 + 蝙蝠 ×8）──────
+        battleMonsters.add(new Monster( 280, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 440, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 610, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 780, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 960, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1140, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1330, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1510, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1690, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster(1870, 300, MonsterType.SLIME));
+        battleMonsters.add(new Monster( 360, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster( 550, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster( 750, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster( 970, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1180, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1390, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1600, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster(1810, 290, MonsterType.BOAR));
+        battleMonsters.add(new Monster( 420, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster( 650, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster( 880, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1110, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1340, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1570, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1760, 200, MonsterType.BAT));
+        battleMonsters.add(new Monster(1930, 200, MonsterType.BAT));
 
-        // ── 極地冰原（冰晶史萊姆 x5 + 極地熊 x3 + 冰蝠 x4）
-        arcticMonsters.add(new Monster( 350, 300, MonsterType.ICE_SLIME));
+        // ── 極地冰原（冰晶史萊姆 ×10 + 極地熊 ×6 + 冰蝠 ×8）
+        arcticMonsters.add(new Monster( 300, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster( 500, 300, MonsterType.ICE_SLIME));
         arcticMonsters.add(new Monster( 700, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster(1100, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster(1500, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster(1900, 300, MonsterType.ICE_SLIME));
-        arcticMonsters.add(new Monster( 550, 290, MonsterType.POLAR_BEAR));
-        arcticMonsters.add(new Monster(1250, 290, MonsterType.POLAR_BEAR));
-        arcticMonsters.add(new Monster(1850, 290, MonsterType.POLAR_BEAR));
-        arcticMonsters.add(new Monster( 450, 200, MonsterType.ICE_BAT));
-        arcticMonsters.add(new Monster( 900, 200, MonsterType.ICE_BAT));
-        arcticMonsters.add(new Monster(1400, 200, MonsterType.ICE_BAT));
-        arcticMonsters.add(new Monster(1800, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster( 920, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1130, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1360, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1600, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(1820, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(2050, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster(2250, 300, MonsterType.ICE_SLIME));
+        arcticMonsters.add(new Monster( 420, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster( 780, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(1180, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(1560, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(1940, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster(2200, 290, MonsterType.POLAR_BEAR));
+        arcticMonsters.add(new Monster( 360, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster( 620, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster( 880, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(1120, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(1380, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(1660, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(1910, 200, MonsterType.ICE_BAT));
+        arcticMonsters.add(new Monster(2160, 200, MonsterType.ICE_BAT));
 
         // ── 鍵盤監聽：UI 面板 + ESC + F5 ────────────────────
         addKeyListener(new KeyAdapter() {
@@ -196,6 +254,18 @@ public class GamePanel extends JPanel implements Runnable {
 
                 ActionType action = keyBindings.getAction(kc);
                 if (action == null) return;
+
+                // 對話面板開著時：↑↓ 導航、Enter 確認、其餘按鍵忽略
+                if ("dialogue".equals(activePanel)) {
+                    if (kc == KeyEvent.VK_UP)    { dialoguePanel.navUp();   return; }
+                    if (kc == KeyEvent.VK_DOWN)  { dialoguePanel.navDown(); return; }
+                    if (kc == KeyEvent.VK_ENTER) {
+                        handleDialogueConfirm(dialoguePanel.confirm());
+                        return;
+                    }
+                    if (action == ActionType.UI_INTERACT) { handleInteract(); return; }
+                    return; // 其他按鍵對話期間忽略
+                }
 
                 // 按鍵配置面板開著時，任何 UI 動作都關閉它
                 if ("keybind".equals(activePanel)) {
@@ -232,7 +302,8 @@ public class GamePanel extends JPanel implements Runnable {
                 } else if ("keybind".equals(activePanel)) {
                     keybindPanel.mousePressed(lp.x, lp.y);
                 } else if ("inventory".equals(activePanel)) {
-                    inventoryPanel.mouseClicked(lp.x, lp.y, player);
+                    String result = inventoryPanel.mouseClicked(lp.x, lp.y, player);
+                    if (result != null) handleConsumableResult(result);
                 } else if ("equip".equals(activePanel)) {
                     equipPanel.mouseClicked(lp.x, lp.y, player);
                 } else if ("shop".equals(activePanel)) {
@@ -329,21 +400,60 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    /** F 鍵互動：有商店 NPC 在旁邊就開商店，已開就關 */
+    /** F 鍵互動：對話 NPC → 開對話；商店 NPC → 開商店；已開 → 關閉 */
     private void handleInteract() {
-        if ("shop".equals(activePanel)) {
-            activePanel = null;
+        if ("dialogue".equals(activePanel)) { activePanel = null; return; }
+        if ("shop".equals(activePanel))     { activePanel = null; return; }
+        if (nearDialogueNpc != null) {
+            openDialogue(nearDialogueNpc);
             return;
         }
         if (nearShopNpc != null) {
             String shopId = nearShopNpc.getShopId();
             if ("item".equals(shopId)) {
-                shopPanel.open("道具商人的商店", ShopPanel.itemShopEntries());
+                shopPanel.open("道具商人的商店", ShopPanel.itemShopEntries(), "item");
             } else if ("weapon".equals(shopId)) {
-                shopPanel.open("武器鐵匠的商店", ShopPanel.weaponShopEntries());
+                shopPanel.open("武器鐵匠的商店", ShopPanel.weaponShopEntries(), "weapon");
             }
             activePanel = "shop";
         }
+    }
+
+    /** 開啟 NPC 對話面板 */
+    private void openDialogue(NPC npc) {
+        if ("elder".equals(npc.getDialogueId()) ||
+            "frontier_elder".equals(npc.getDialogueId())) {
+            QuestManager.DialogueData dd = questManager.getElderDialogue();
+            dialoguePanel.open(dd.npcName, dd.text, dd.options, dd.actionIds);
+            activePanel = "dialogue";
+        }
+    }
+
+    /** 處理對話選項確認 */
+    private void handleDialogueConfirm(String actionId) {
+        if (actionId == null || "dismiss".equals(actionId)) {
+            activePanel = null;
+            return;
+        }
+        if (actionId.startsWith("accept_")) {
+            int id = Integer.parseInt(actionId.substring(7));
+            questManager.acceptQuest(id);
+            if (nearDialogueNpc != null) openDialogue(nearDialogueNpc);
+            return;
+        }
+        if (actionId.startsWith("complete_")) {
+            int id = Integer.parseInt(actionId.substring(9));
+            questManager.completeQuest(id, player);
+            if (nearDialogueNpc != null) openDialogue(nearDialogueNpc);
+            return;
+        }
+        if (actionId.startsWith("abandon_")) {
+            int id = Integer.parseInt(actionId.substring(8));
+            questManager.abandonQuest(id);
+            if (nearDialogueNpc != null) openDialogue(nearDialogueNpc);
+            return;
+        }
+        activePanel = null;
     }
 
     /** 處理撿取掉落物：金幣加入玩家，道具加入背包，並顯示提示文字 */
@@ -369,20 +479,46 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
+    /**
+     * 處理消耗品使用結果字串（藥水 or 傳送卷軸）。
+     * InventoryPanel 使用藥水後回傳 result，此方法統一解析。
+     */
+    private void handleConsumableResult(String result) {
+        if (result == null || result.isEmpty()) return;
+        if (result.startsWith("TELEPORT:")) {
+            String targetMapId = result.substring(9);
+            int gY = GamePanel.GAME_HEIGHT - 40;
+            double spawnX = switch (targetMapId) {
+                case "village"  -> 400;
+                case "frontier" -> 400;
+                case "battle"   -> 300;
+                default         -> 200;
+            };
+            mapManager.switchMap(targetMapId, spawnX, gY - 80, player);
+            camera.snapTo(player.getX(), player.getY(),
+                          mapManager.getCurrentMap().getMapWidth());
+            pickupNotice      = "傳送至：" + mapName(targetMapId);
+            pickupNoticeTimer = 2.0;
+        } else if (!result.isEmpty()) {
+            pickupNotice      = result;
+            pickupNoticeTimer = 1.5;
+        }
+    }
+
     /** 切換面板：再按一次關閉 */
     private void togglePanel(String name) {
         activePanel = name.equals(activePanel) ? null : name;
     }
 
-    /** 根據目前地圖回傳對應的怪物列表 */
+    /** 根據目前地圖回傳對應的怪物列表（村莊類地圖回傳空列表） */
     private List<Monster> currentMonsters() {
         return switch (mapManager.getCurrentMap().getMapId()) {
-            case "novice1" -> novice1Monsters;
-            case "novice2" -> novice2Monsters;
-            case "novice3" -> novice3Monsters;
-            case "battle"  -> battleMonsters;
-            case "arctic"  -> arcticMonsters;
-            default        -> java.util.Collections.emptyList();
+            case "novice1"   -> novice1Monsters;
+            case "novice2"   -> novice2Monsters;
+            case "novice3"   -> novice3Monsters;
+            case "battle"    -> battleMonsters;
+            case "arctic"    -> arcticMonsters;
+            default          -> java.util.Collections.emptyList(); // village/frontier/icepost
         };
     }
 
@@ -396,7 +532,7 @@ public class GamePanel extends JPanel implements Runnable {
     public void stopGameLoop() { running = false; }
 
     private void saveGame() {
-        SaveManager.save(saveSlot, player, mapManager.getCurrentMap().getMapId());
+        SaveManager.save(saveSlot, player, mapManager.getCurrentMap().getMapId(), questManager);
         keyBindings.saveToFile(); // 同時存按鍵設定
         showSaveNotice();
     }
@@ -443,9 +579,9 @@ public class GamePanel extends JPanel implements Runnable {
         // 地圖切換（傳送門）
         mapManager.update(dt, player);
         if (mapManager.justSwitched()) {
-            // 瞬間跳鏡頭，不 lerp
             camera.snapTo(player.getX(), player.getY(),
                           mapManager.getCurrentMap().getMapWidth());
+            questManager.onMapEntered(mapManager.getCurrentMap().getMapId());
         }
 
         // 技能輸入
@@ -468,6 +604,7 @@ public class GamePanel extends JPanel implements Runnable {
                 m.update(dt, currentMap, player);
                 if (m.pollJustDied()) {
                     player.gainExp(m.getExpReward());
+                    questManager.onMonsterKilled(m.getType());
                 }
                 if (m.pollDropPending()) {
                     drops.addAll(m.rollDrops());
@@ -488,20 +625,22 @@ public class GamePanel extends JPanel implements Runnable {
             return drop.isExpired();
         });
 
-        // 背包面板計時更新
+        // 面板計時更新
         if ("inventory".equals(activePanel)) inventoryPanel.update(dt);
         if ("equip".equals(activePanel))     equipPanel.update(dt);
         if ("shop".equals(activePanel))      shopPanel.update(dt);
+        if ("dialogue".equals(activePanel))  dialoguePanel.update(dt);
 
-        // NPC 更新 + 近距離偵測（只在村莊有商店 NPC）
-        nearShopNpc = null;
+        // NPC 更新 + 近距離偵測
+        nearShopNpc     = null;
+        nearDialogueNpc = null;
         for (NPC npc : currentMap.getNPCs()) {
             npc.update(dt);
-            if (npc.hasShop()) {
-                boolean near = npc.isNearPlayer(player.getX(), player.getY(),
-                                                NPC_INTERACT_RANGE);
-                npc.setShowHint(near);
-                if (near) nearShopNpc = npc;
+            boolean near = npc.isNearPlayer(player.getX(), player.getY(), NPC_INTERACT_RANGE);
+            npc.setShowHint(near);
+            if (near) {
+                if (npc.hasShop())     nearShopNpc     = npc;
+                if (npc.hasDialogue()) nearDialogueNpc = npc;
             }
         }
     }
@@ -545,6 +684,21 @@ public class GamePanel extends JPanel implements Runnable {
             case "inventory" -> inventoryPanel.draw(g2d, player);
             case "shop"      -> shopPanel.draw(g2d, player);
             case "keybind"   -> keybindPanel.draw(g2d);
+            case "dialogue"  -> dialoguePanel.draw(g2d);
+        }
+
+        // 等級不足攔截提示（顯示在遊戲畫面底部）
+        String blocked = mapManager.getLevelBlockedNotice();
+        if (blocked != null) {
+            g2d.setFont(new Font("Microsoft JhengHei", Font.BOLD, 14));
+            FontMetrics bfm = g2d.getFontMetrics();
+            int bw = bfm.stringWidth(blocked);
+            int bx = (SCREEN_WIDTH - bw) / 2;
+            int by = GAME_HEIGHT - 25;
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(bx - 10, by - 18, bw + 20, 24, 8, 8);
+            g2d.setColor(new Color(255, 80, 80));
+            g2d.drawString(blocked, bx, by);
         }
 
         // 撿取提示（浮動於 HUD 上方）
@@ -568,7 +722,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         // 天空漸層（極地地圖自己畫夜空，novice3 畫傍晚，各 novice 地圖也自繪天空）
         String mapId = currentMap.getMapId();
-        if (!mapId.equals("arctic") && !mapId.startsWith("novice")) {
+        if (!mapId.equals("arctic") && !mapId.startsWith("novice") && !mapId.equals("icepost")) {
             GradientPaint sky = new GradientPaint(
                 0, 0,           new Color(100, 180, 240),
                 0, GAME_HEIGHT, new Color(170, 220, 255)
@@ -591,101 +745,99 @@ public class GamePanel extends JPanel implements Runnable {
         player.draw(g, camera);
     }
 
-    /** 繪製底部 HUD */
+    /**
+     * 繪製底部 HUD（重新設計，三排無重疊）
+     *
+     * 左區(0-202): HP/MP 條
+     * 中左(205-400): Lv/職業 + 地圖 + 金幣
+     * 中右(405-510): 技能槽（Q/W）
+     * 右區(514-800): 四個快捷按鈕（每個 71px，3px 間距）
+     * 底部：EXP 條
+     */
     private void drawHUD(Graphics2D g) {
-        int hudY = GAME_HEIGHT;
+        int hudY = GAME_HEIGHT; // 500
 
-        // HUD 底板
+        // ── HUD 底板 ─────────────────────────────────────────
         g.setColor(new Color(15, 15, 35));
         g.fillRect(0, hudY, SCREEN_WIDTH, HUD_HEIGHT);
         g.setColor(new Color(60, 60, 120));
         g.drawLine(0, hudY, SCREEN_WIDTH, hudY);
 
-        drawBar(g, 10, hudY + 10, "HP",
+        // ── 左區：HP / MP 條（y+6 / y+28，高 16）───────────
+        drawBar(g, 8, hudY + 6, "HP",
                 player.getHp(), player.getMaxHp(),
-                new Color(180, 30, 30), new Color(220, 60, 60));
-        drawBar(g, 10, hudY + 36, "MP",
+                new Color(160, 25, 25), new Color(210, 55, 55));
+        drawBar(g, 8, hudY + 28, "MP",
                 player.getMp(), player.getMaxMp(),
-                new Color(20, 40, 140), new Color(60, 110, 220));
+                new Color(15, 35, 130), new Color(50, 100, 210));
 
-        // 等級 / 職業
-        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
+        // ── 中左區：Lv/職業、地圖名、金幣、互動提示 ────────
+        int cx = 207;
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
         g.setColor(Color.YELLOW);
-        g.drawString("Lv." + player.getLevel() + "  " + player.getJobName(),
-                     260, hudY + 25);
+        g.drawString("Lv." + player.getLevel() + " " + player.getJobName(), cx, hudY + 18);
 
-        // 金幣
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 12));
-        g.setColor(new Color(255, 215, 0));
-        g.drawString("G " + player.getGold(), 260, hudY + 56);
+        String mapLabel = mapManager.getCurrentMap().getMapId();
+        String interactHint = "";
+        if (nearDialogueNpc != null)
+            interactHint = " [" + getBoundKeyName(ActionType.UI_INTERACT) + "]對話";
+        else if (nearShopNpc != null)
+            interactHint = " [" + getBoundKeyName(ActionType.UI_INTERACT) + "]購物";
 
-        // 存檔提示
+        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
+        g.setColor(new Color(150, 155, 200));
+        g.drawString(mapName(mapLabel) + interactHint, cx, hudY + 34);
+
+        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
+        g.setColor(new Color(255, 210, 0));
+        g.drawString("G " + player.getGold(), cx, hudY + 52);
+
+        // 存檔提示（疊加在中央）
         if (saveNoticeTimer > 0) {
             float alpha = (float) Math.min(1.0, saveNoticeTimer);
-            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
-            g.setColor(new Color(100, 255, 120, (int)(alpha * 220)));
-            g.drawString("存檔成功 (Slot " + saveSlot + ")",
-                         SCREEN_WIDTH / 2 - 68, hudY + 30);
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+            g.setColor(new Color(80, 240, 110, (int)(alpha * 230)));
+            g.drawString("✔ 存檔成功 (Slot " + saveSlot + ")", cx, hudY + 67);
         }
 
-        // 地圖名稱（從 mapId 動態解析）
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-        g.setColor(new Color(160, 160, 200));
-        String mapLabel = mapManager.getCurrentMap().getMapId();
-        String interactHint = nearShopNpc != null
-                ? "  [" + getBoundKeyName(ActionType.UI_INTERACT) + "] 購物"
-                : "";
-        g.drawString(mapName(mapLabel) + "  [F5 存檔]  [ESC 選單]" + interactHint,
-                     260, hudY + 44);
+        // ── 中右區：技能槽（Q/W）─────────────────────────
+        if (player.getJob() != null) drawSkillSlots(g, hudY);
 
-        // 技能冷卻格
-        if (player.getJob() != null && !mapManager.isOnMap("village")) {
-            drawSkillSlots(g, hudY);
-        }
+        // ── 右區：四個快捷按鈕（71px×22px，間距 3px）──────
+        // 共 4×71 + 3×3 = 284+9 = 293px，起點 x = 800-293 = 507
+        int btnX = 507, btnY = hudY + 6, btnW = 71, btnH = 22;
+        drawHudButton(g, "技能[" + getBoundKeyName(ActionType.UI_SKILL)     + "]", btnX,          btnY, btnW, btnH);
+        drawHudButton(g, "背包[" + getBoundKeyName(ActionType.UI_INVENTORY) + "]", btnX + 74,     btnY, btnW, btnH);
+        drawHudButton(g, "裝備[" + getBoundKeyName(ActionType.UI_EQUIP)     + "]", btnX + 74 * 2, btnY, btnW, btnH);
+        drawHudButton(g, "狀態[" + getBoundKeyName(ActionType.UI_STATUS)    + "]", btnX + 74 * 3, btnY, btnW, btnH);
 
-        // EXP 條
-        int expY = SCREEN_HEIGHT - 12;
-        g.setColor(new Color(0, 50, 0));
-        g.fillRect(0, expY, SCREEN_WIDTH, 12);
-        g.setColor(new Color(70, 200, 70));
-        g.fillRect(0, expY, (int)(SCREEN_WIDTH * player.getExpRatio()), 12);
-        g.setColor(new Color(100, 255, 100, 180));
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
-        g.drawString("EXP", 4, expY + 10);
+        // 操作說明（右下角，9pt 小字）
+        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 9));
+        g.setColor(new Color(110, 110, 150));
+        g.drawString("移:AD 跳:W 攻:Z  按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "] F5存", 507, hudY + 58);
 
-        // 快捷按鈕（右側）
-        drawHudButton(g, "技能 [" + getBoundKeyName(ActionType.UI_SKILL)      + "]",
-                      SCREEN_WIDTH - 350, hudY + 20);
-        drawHudButton(g, "背包 [" + getBoundKeyName(ActionType.UI_INVENTORY)  + "]",
-                      SCREEN_WIDTH - 255, hudY + 20);
-        drawHudButton(g, "裝備 [" + getBoundKeyName(ActionType.UI_EQUIP)      + "]",
-                      SCREEN_WIDTH - 160, hudY + 20);
-        drawHudButton(g, "狀態 [" + getBoundKeyName(ActionType.UI_STATUS)     + "]",
-                      SCREEN_WIDTH -  65, hudY + 20);
-
-        // 操作說明
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
-        g.setColor(new Color(150, 150, 180));
-        g.drawString("移:" + getBoundKeyName(ActionType.MOVE_LEFT)
-                         + "/" + getBoundKeyName(ActionType.MOVE_RIGHT)
-                   + " 跳:" + getBoundKeyName(ActionType.JUMP)
-                   + " 攻:" + getBoundKeyName(ActionType.ATTACK)
-                   + " Q技:" + getBoundKeyName(ActionType.SKILL_0)
-                   + " W技:" + getBoundKeyName(ActionType.SKILL_1)
-                   + " 背包[" + getBoundKeyName(ActionType.UI_INVENTORY) + "]"
-                   + " 按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "]",
-                   SCREEN_WIDTH - 490, hudY + 62);
+        // ── EXP 條（最底部 7px）──────────────────────────
+        int expY = SCREEN_HEIGHT - 7;
+        g.setColor(new Color(0, 40, 0));
+        g.fillRect(0, expY, SCREEN_WIDTH, 7);
+        g.setColor(new Color(65, 190, 65));
+        g.fillRect(0, expY, (int)(SCREEN_WIDTH * player.getExpRatio()), 7);
+        g.setColor(new Color(90, 240, 90, 160));
+        g.setFont(new Font("Arial", Font.BOLD, 7));
+        g.drawString("EXP", 3, expY + 6);
     }
 
     private String mapName(String mapId) {
         return switch (mapId) {
-            case "village" -> "新手村";
-            case "novice1" -> "新手森林一區";
-            case "novice2" -> "新手森林二區";
-            case "novice3" -> "新手森林三區";
-            case "battle"  -> "冒險平原";
-            case "arctic"  -> "極地冰原";
-            default        -> mapId;
+            case "village"  -> "新手村";
+            case "novice1"  -> "新手森林一區";
+            case "novice2"  -> "新手森林二區";
+            case "novice3"  -> "新手森林三區";
+            case "frontier" -> "前線前哨站";
+            case "battle"   -> "冒險平原";
+            case "icepost"  -> "冰原驛站";
+            case "arctic"   -> "極地冰原";
+            default         -> mapId;
         };
     }
 
@@ -694,30 +846,31 @@ public class GamePanel extends JPanel implements Runnable {
         return kc != null ? KeyBindingManager.keyName(kc) : "-";
     }
 
+    /** 技能槽繪製（中右區，y+8 開始，槽 34×34）*/
     private void drawSkillSlots(Graphics2D g, int hudY) {
         if (player.getJob() == null) return;
         List<Skill> skills = player.getJob().getSkills();
-        int slotSize = 38, startX = 430;
+        int slotSize = 34, startX = 408;
         String[] actions = {
             getBoundKeyName(ActionType.SKILL_0),
             getBoundKeyName(ActionType.SKILL_1)
         };
 
-        for (int i = 0; i < skills.size(); i++) {
+        for (int i = 0; i < Math.min(skills.size(), 2); i++) {
             Skill s  = skills.get(i);
-            int   sx = startX + i * (slotSize + 6);
-            int   sy = hudY + (HUD_HEIGHT - slotSize) / 2 - 2;
+            int   sx = startX + i * (slotSize + 4);
+            int   sy = hudY + 8;
 
-            g.setColor(new Color(30, 30, 60));
+            g.setColor(new Color(25, 25, 55));
             g.fillRoundRect(sx, sy, slotSize, slotSize, 6, 6);
 
             double cdRatio = s.getCooldownRatio();
             if (cdRatio > 0) {
-                g.setColor(new Color(0, 0, 0, 160));
+                g.setColor(new Color(0, 0, 0, 150));
                 g.fillRect(sx, sy, slotSize, (int)(slotSize * cdRatio));
             }
 
-            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 9));
             g.setColor(cdRatio > 0 ? Color.GRAY : Color.WHITE);
             FontMetrics fm = g.getFontMetrics();
             String label = s.getName();
@@ -725,17 +878,17 @@ public class GamePanel extends JPanel implements Runnable {
                          sy + slotSize / 2 + 3);
 
             g.setStroke(new BasicStroke(1.5f));
-            g.setColor(cdRatio > 0 ? new Color(80, 80, 120) : new Color(120, 180, 255));
+            g.setColor(cdRatio > 0 ? new Color(70, 70, 110) : new Color(110, 170, 250));
             g.drawRoundRect(sx, sy, slotSize, slotSize, 6, 6);
             g.setStroke(new BasicStroke(1f));
 
-            g.setFont(new Font("Arial", Font.BOLD, 9));
-            g.setColor(new Color(200, 200, 200));
-            g.drawString("[" + actions[i] + "]", sx + 2, sy + slotSize - 3);
+            g.setFont(new Font("Arial", Font.BOLD, 8));
+            g.setColor(new Color(190, 190, 190));
+            g.drawString("[" + actions[i] + "]", sx + 2, sy + slotSize - 2);
 
-            g.setFont(new Font("Arial", Font.PLAIN, 9));
-            g.setColor(new Color(100, 150, 255));
-            g.drawString(s.getMpCost() + "MP", sx + 2, sy + 11);
+            g.setFont(new Font("Arial", Font.PLAIN, 8));
+            g.setColor(new Color(90, 140, 250));
+            g.drawString(s.getMpCost() + "MP", sx + 2, sy + 10);
         }
     }
 
@@ -744,29 +897,29 @@ public class GamePanel extends JPanel implements Runnable {
     private void drawBar(Graphics2D g, int x, int y,
                          String label, int cur, int max,
                          Color bg, Color fg) {
-        int barW = 200, barH = 18;
-        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+        int barW = 192, barH = 16;
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
         g.setColor(Color.WHITE);
-        g.drawString(label, x, y + 14);
+        g.drawString(label, x, y + 12);
         g.setColor(bg);
-        g.fillRect(x + 28, y, barW, barH);
+        g.fillRect(x + 26, y, barW, barH);
         double ratio = max > 0 ? (double) cur / max : 0;
         g.setColor(fg);
-        g.fillRect(x + 28, y, (int)(barW * ratio), barH);
+        g.fillRect(x + 26, y, (int)(barW * ratio), barH);
         g.setColor(Color.WHITE);
-        g.drawRect(x + 28, y, barW, barH);
-        g.setFont(new Font("Arial", Font.BOLD, 11));
-        g.drawString(cur + " / " + max, x + 33, y + 13);
+        g.drawRect(x + 26, y, barW, barH);
+        g.setFont(new Font("Arial", Font.BOLD, 10));
+        g.drawString(cur + "/" + max, x + 30, y + 12);
     }
 
-    private void drawHudButton(Graphics2D g, String label, int x, int y) {
-        g.setColor(new Color(40, 40, 75));
-        g.fillRoundRect(x, y, 85, 28, 8, 8);
-        g.setColor(new Color(100, 100, 180));
-        g.drawRoundRect(x, y, 85, 28, 8, 8);
+    private void drawHudButton(Graphics2D g, String label, int x, int y, int w, int h) {
+        g.setColor(new Color(38, 38, 70));
+        g.fillRoundRect(x, y, w, h, 6, 6);
+        g.setColor(new Color(90, 90, 165));
+        g.drawRoundRect(x, y, w, h, 6, 6);
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
+        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
         FontMetrics fm = g.getFontMetrics();
-        g.drawString(label, x + (85 - fm.stringWidth(label)) / 2, y + 18);
+        g.drawString(label, x + (w - fm.stringWidth(label)) / 2, y + h - 5);
     }
 }

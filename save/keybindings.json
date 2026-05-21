@@ -1,0 +1,16 @@
+{
+  "MOVE_LEFT": 37,
+  "MOVE_RIGHT": 39,
+  "JUMP": 68,
+  "CLIMB_UP": 38,
+  "CLIMB_DOWN": 40,
+  "ATTACK": 70,
+  "SKILL_0": 81,
+  "SKILL_1": 87,
+  "UI_STATUS": 83,
+  "UI_SKILL": 75,
+  "UI_EQUIP": 69,
+  "UI_INVENTORY": 73,
+  "UI_INTERACT": 32,
+  "UI_KEYBIND": 66
+}

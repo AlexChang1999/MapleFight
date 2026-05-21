@@ -39,12 +39,12 @@ public class ArcticMap extends BaseMap {
         buildMap();
         initSnow();
 
-        // 左側傳送門 → 回冒險平原（出生在右側平台附近）
+        // 左側傳送門 → 回冰原驛站
         int gY = GamePanel.GAME_HEIGHT - 40;
         portals.add(new Portal(
             30, gY - Portal.HEIGHT,
-            "battle", 1700, gY - 100,
-            "回冒險平原"
+            "icepost", IcePostTown.MAP_WIDTH - 68, gY - 80,
+            "回冰原驛站", 1
         ));
     }
 

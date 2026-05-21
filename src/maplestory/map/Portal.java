@@ -19,17 +19,25 @@ public class Portal {
     private final double spawnX;      // 玩家在目標地圖的出生 X
     private final double spawnY;      // 玩家在目標地圖的出生 Y
     private final String label;       // 顯示在傳送門上方的文字
+    private final int    minLevel;    // 通過所需最低等級（1 = 無限制）
 
     private double animTimer = 0;
 
+    /** 舊版建構子，minLevel 預設為 1（無限制） */
     public Portal(int x, int y, String targetMapId,
                   double spawnX, double spawnY, String label) {
+        this(x, y, targetMapId, spawnX, spawnY, label, 1);
+    }
+
+    public Portal(int x, int y, String targetMapId,
+                  double spawnX, double spawnY, String label, int minLevel) {
         this.x           = x;
         this.y           = y;
         this.targetMapId = targetMapId;
         this.spawnX      = spawnX;
         this.spawnY      = spawnY;
         this.label       = label;
+        this.minLevel    = minLevel;
     }
 
     public void update(double dt) {
@@ -89,4 +97,5 @@ public class Portal {
     public String getTargetMapId() { return targetMapId; }
     public double getSpawnX()      { return spawnX; }
     public double getSpawnY()      { return spawnY; }
+    public int    getMinLevel()    { return minLevel; }
 }

@@ -43,9 +43,9 @@ public class VillageMap extends BaseMap {
 
     // ── NPC ──────────────────────────────────────────────────
     private void buildNPCs() {
-        // 村長老人（橘色，面右）
+        // 村長老人（橘色，面右；dialogueId="elder"）
         npcs.add(new NPC(260, groundY - NPC.HEIGHT,
-                         "村長老人", new Color(230, 150, 60), true));
+                         "村長老人", new Color(230, 150, 60), true, null, "elder"));
         // 道具商人（青色，面左，站在道具店前；shopId="item"）
         npcs.add(new NPC(590, groundY - NPC.HEIGHT,
                          "道具商人", new Color(60, 200, 180), false, "item"));
@@ -56,17 +56,17 @@ public class VillageMap extends BaseMap {
 
     // ── 傳送門 ───────────────────────────────────────────────
     private void buildPortals() {
-        // 左側傳送門 → 新手森林一區（右側出生）
+        // 左側傳送門 → 新手森林一區（無等級限制）
         portals.add(new Portal(
             22, groundY - Portal.HEIGHT,
             "novice1", NoviceMap1.MAP_WIDTH - 130, groundY - 80,
-            "前往新手林"
+            "前往新手林", 1
         ));
-        // 右側傳送門 → 冒險平原（高等地圖），玩家出生在 (150, 300)
+        // 右側傳送門 → 冒險平原（需要 Lv.10）
         portals.add(new Portal(
             MAP_WIDTH - 90, groundY - Portal.HEIGHT,
             "battle", 150, 300,
-            "冒險平原"
+            "冒險平原(Lv.10)", 10
         ));
     }
 

@@ -247,11 +247,13 @@ public class Monster {
         }
     }
 
-    /** 共用攻擊邏輯（同時檢查 X、Y 距離，避免蝙蝠懸空時誤傷） */
+    /** 共用攻擊邏輯：精確矩形碰撞，冰系額外套用緩速效果。 */
     private void tryAttack(Player player) {
-        double distX = Math.abs(player.getX() - x);
-        double distY = Math.abs(player.getY() - y);
-        if (distX < ATTACK_RANGE && distY < ATTACK_RANGE && attackCooldown <= 0) {
+        if (attackCooldown > 0) return;
+        Rectangle atkBox = new Rectangle((int) x, (int) y, width, height);
+        Rectangle plBox  = new Rectangle(
+            (int) player.getX(), (int) player.getY(), Player.WIDTH, Player.HEIGHT);
+        if (atkBox.intersects(plBox)) {
             player.takeDamage(atk);
             if (type.iceType) player.applySlow(2.5, 0.5);
             attackCooldown = ATTACK_CD;

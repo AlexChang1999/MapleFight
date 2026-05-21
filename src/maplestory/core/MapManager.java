@@ -5,7 +5,9 @@ import maplestory.audio.SoundManager;
 import maplestory.entity.Player;
 import maplestory.map.ArcticMap;
 import maplestory.map.BaseMap;
+import maplestory.map.FrontierTown;
 import maplestory.map.GameMap;
+import maplestory.map.IcePostTown;
 import maplestory.map.NoviceMap1;
 import maplestory.map.NoviceMap2;
 import maplestory.map.NoviceMap3;
@@ -30,15 +32,21 @@ public class MapManager {
     // 供 GamePanel 判斷是否剛切換地圖（需要重置鏡頭等）
     private boolean justSwitched = false;
 
+    // 等級不足被擋下時的通知文字（由 GamePanel 讀取顯示）
+    private String  levelBlockedNotice  = null;
+    private double  levelBlockedTimer   = 0;
+
     public MapManager() {
-        maps.put("village", new VillageMap());
-        maps.put("novice1", new NoviceMap1());
-        maps.put("novice2", new NoviceMap2());
-        maps.put("novice3", new NoviceMap3());
-        maps.put("battle",  new GameMap());
-        maps.put("arctic",  new ArcticMap());
+        maps.put("village",  new VillageMap());
+        maps.put("novice1",  new NoviceMap1());
+        maps.put("novice2",  new NoviceMap2());
+        maps.put("novice3",  new NoviceMap3());
+        maps.put("frontier", new FrontierTown());
+        maps.put("battle",   new GameMap());
+        maps.put("icepost",  new IcePostTown());
+        maps.put("arctic",   new ArcticMap());
         currentMap = maps.get("village");
-        SoundManager.get().playBGM("village"); // 遊戲開始播放村莊 BGM
+        SoundManager.get().playBGM("village");
     }
 
     /** 每幀更新：傳送門動畫 + 碰撞偵測 */
@@ -51,14 +59,26 @@ public class MapManager {
             p.update(dt);
         }
 
+        // 等級封鎖通知計時
+        if (levelBlockedTimer > 0) levelBlockedTimer -= dt;
+        if (levelBlockedTimer <= 0) levelBlockedNotice = null;
+
         // 偵測玩家是否踩到傳送門
         if (portalCooldown <= 0) {
             for (Portal p : currentMap.getPortals()) {
                 if (p.collidesWith(player)) {
-                    switchMap(p.getTargetMapId(),
-                              p.getSpawnX(),
-                              p.getSpawnY(), player);
-                    portalCooldown = 2.0;
+                    if (player.getLevel() < p.getMinLevel()) {
+                        // 等級不足：顯示提示，不切換
+                        levelBlockedNotice = "等級不足！需要 Lv." + p.getMinLevel()
+                                           + "（目前 Lv." + player.getLevel() + "）";
+                        levelBlockedTimer  = 2.5;
+                        portalCooldown     = 1.5; // 短冷卻避免重複觸發
+                    } else {
+                        switchMap(p.getTargetMapId(),
+                                  p.getSpawnX(),
+                                  p.getSpawnY(), player);
+                        portalCooldown = 2.0;
+                    }
                     break;
                 }
             }
@@ -80,4 +100,7 @@ public class MapManager {
     public BaseMap  getCurrentMap()          { return currentMap; }
     public boolean  isOnMap(String mapId)    { return mapId.equals(currentMap.getMapId()); }
     public boolean  justSwitched()           { return justSwitched; }
+
+    /** 若等級不足被擋下，回傳通知文字；否則回傳 null */
+    public String   getLevelBlockedNotice()  { return levelBlockedTimer > 0 ? levelBlockedNotice : null; }
 }

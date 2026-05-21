@@ -75,6 +75,9 @@ public class Player {
     // ── 升級特效 ─────────────────────────────────────────────
     private double levelUpTimer = 0;
 
+    // ── 受傷表情計時 ─────────────────────────────────────────
+    private double hurtTimer = 0;
+
     // ── 動畫計時 ─────────────────────────────────────────────
     private double walkAnim  = 0; // 走路週期
     private double idleTimer = 0; // 靜待呼吸週期
@@ -153,6 +156,7 @@ public class Player {
         timeSinceLastCombat += dt;
         if (slowTimer    > 0) { slowTimer    -= dt; if (slowTimer    <= 0) slowFactor = 1.0; }
         if (levelUpTimer > 0)   levelUpTimer -= dt;
+        if (hurtTimer    > 0)   hurtTimer    -= dt;
 
         // ── 梯子偵測 ─────────────────────────────────────────
         boolean wasOnLadder = onLadder;
@@ -195,6 +199,9 @@ public class Player {
                 currentLadder = null;
             }
         } else {
+            // 剛脫離梯子且正在上升 → 清除上升慣性，避免飄移
+            if (wasOnLadder && velY < 0) velY = 0;
+
             double spd = MOVE_SPEED * slowFactor;
             velX = 0;
             if (movingLeft)  { velX = -spd; facingRight = false; }
@@ -277,7 +284,7 @@ public class Player {
         while (exp >= expToNextLevel) {
             exp -= expToNextLevel;
             level++;
-            expToNextLevel = level * 100;
+            expToNextLevel = level * level * 10 + level * 40 + 50;
             str += 2; dex += 1; intel += 1; luk += 1;
             recalculateStats();
             hp = maxHp; mp = maxMp;
@@ -336,6 +343,7 @@ public class Player {
     public void takeDamage(int dmg) {
         hp = Math.max(0, hp - dmg);
         timeSinceLastCombat = 0;
+        hurtTimer = 0.5;
         SoundManager.get().playSFX(SFX.HURT);
     }
 
@@ -453,10 +461,27 @@ public class Player {
         g.setColor(Color.WHITE);
         g.drawOval(cx - 10, sy, 20, 20);
 
-        // 臉（眼睛）
+        // 臉（眼睛 + 嘴）
         int eyeDir = facingRight ? 3 : -3;
         g.setColor(Color.BLACK);
-        g.fillOval(cx + eyeDir - 2, sy + 7, 3, 3);
+        g.setStroke(new BasicStroke(1.5f));
+        if (hurtTimer > 0) {
+            // 受傷：X 字眼睛 + 下彎嘴 + 眉毛下垂
+            int ex = cx + eyeDir - 1, ey = sy + 6;
+            g.drawLine(ex - 2, ey,     ex + 2, ey + 4); // ✕
+            g.drawLine(ex - 2, ey + 4, ex + 2, ey);
+            g.setColor(new Color(80, 0, 0));
+            g.drawArc(cx - 4, sy + 12, 8, 5, 0, -180); // 下彎嘴
+            // 眉毛下垂（斜向下）
+            g.setColor(Color.BLACK);
+            g.drawLine(cx + eyeDir - 3, sy + 4, cx + eyeDir + 1, sy + 6);
+        } else {
+            // 正常：圓點眼 + 微笑
+            g.fillOval(cx + eyeDir - 2, sy + 7, 3, 3);
+            g.setColor(new Color(30, 30, 30));
+            g.drawArc(cx - 4, sy + 11, 8, 5, 0, 180);  // 微笑嘴
+        }
+        g.setStroke(new BasicStroke(2.2f));
 
         // ── 身體（上衣色）────────────────────────────────────
         g.setColor(topColor);
