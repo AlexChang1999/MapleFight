@@ -12,7 +12,7 @@ import javax.sound.midi.*;
  */
 public enum BGMTrack {
 
-    VILLAGE, NOVICE, BATTLE, ARCTIC;
+    VILLAGE, NOVICE, BATTLE, ARCTIC, FRONTIER, ICEPOST;
 
     // ── MIDI 時值常數（PPQ=480）───────────────────────────────
     private static final int PPQ = 480;
@@ -47,22 +47,33 @@ public enum BGMTrack {
     private static final int RIDE  = 51;  // 叮鑔
 
     // ─────────────────────────────────────────────────────────
+    // ── 額外 GM 樂器 ─────────────────────────────────────────
+    private static final int TRUMPET       = 56;
+    private static final int TROMBONE      = 57;
+    private static final int FRENCH_HORN   = 60;
+    private static final int MARIMBA       = 12;
+    private static final int OVERTONE_FLUTE= 84;  // 泛音長笛（另類空靈感）
+
     public static BGMTrack forMap(String mapId) {
         return switch (mapId) {
             case "village"                       -> VILLAGE;
             case "novice1", "novice2", "novice3" -> NOVICE;
             case "battle"                        -> BATTLE;
             case "arctic"                        -> ARCTIC;
+            case "frontier"                      -> FRONTIER;
+            case "icepost"                       -> ICEPOST;
             default                              -> VILLAGE;
         };
     }
 
     public Sequence buildSequence() throws InvalidMidiDataException {
         return switch (this) {
-            case VILLAGE -> buildVillage();
-            case NOVICE  -> buildNovice();
-            case BATTLE  -> buildBattle();
-            case ARCTIC  -> buildArctic();
+            case VILLAGE  -> buildVillage();
+            case NOVICE   -> buildNovice();
+            case BATTLE   -> buildBattle();
+            case ARCTIC   -> buildArctic();
+            case FRONTIER -> buildFrontier();
+            case ICEPOST  -> buildIcePost();
         };
     }
 
@@ -404,6 +415,201 @@ public enum BGMTrack {
         for (int b = 0; b < 8; b++) {
             addNote(bas, 3, bNotes[b], tb, bDurs[b] - 30, 48);
             tb += W;
+        }
+
+        return seq;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // FRONTIER — "出征的號角"
+    // G小調 · 120 BPM · 8小節循環
+    // 進行曲式銅管主旋律，弦樂填墊，貝斯穩步前進，帶出前線據點的緊張戰備感。
+    // ═══════════════════════════════════════════════════════════
+    private static Sequence buildFrontier() throws InvalidMidiDataException {
+        Sequence seq = new Sequence(Sequence.PPQ, PPQ);
+        addTempo(seq.createTrack(), 120);
+
+        // ── ch0 小號主旋律（進行曲式，G小調）──────────────────
+        Track mel = seq.createTrack();
+        setProgram(mel, 0, TRUMPET);
+        setVolume(mel, 0, 98);
+        int t = 0;
+        // 小節1: G5↗Bb5↗D6 上行呼號（進行曲開場典型手法）
+        t = notes(mel, 0, t, 92, 67,Q, 70,Q, 74,H);
+        // 小節2: C6(Q) D6(Q) Eb6(H) — 繼續上行，製造緊迫感
+        t = notes(mel, 0, t, 95, 72,Q, 74,Q, 75,H);
+        // 小節3: D6(Q) C6(Q) Bb5(Q) G5(Q) — 穩步下行
+        t = notes(mel, 0, t, 92, 74,Q, 72,Q, 70,Q, 67,Q);
+        // 小節4: F5(H) D5(H) — 收斂，等待再出發
+        t = notes(mel, 0, t, 88, 65,H, 62,H);
+        // 小節5: Bb5(Q) D6(Q) F6(Q) Bb6(Q) — 更高的呼號
+        t = notes(mel, 0, t, 98, 70,Q, 74,Q, 77,Q, 82,Q);
+        // 小節6: A5(Q) Bb5(Q) G5(H) — 小調特色降七和弦
+        t = notes(mel, 0, t, 95, 69,Q, 70,Q, 67,H);
+        // 小節7: Eb6(Q) D6(Q) C6(Q) Bb5(Q) — 帶力量下行
+        t = notes(mel, 0, t, 92, 75,Q, 74,Q, 72,Q, 70,Q);
+        // 小節8: G5(W) — 回到主音，銅管齊鳴感
+        notes(mel, 0, t, 100, 67,W);
+
+        // ── ch1 法國號和聲（增加銅管厚度與莊嚴感）──────────────
+        Track hrn = seq.createTrack();
+        setProgram(hrn, 1, FRENCH_HORN);
+        setVolume(hrn, 1, 58);
+        // 平行三度/六度的和聲
+        int th = 0;
+        th = notes(hrn, 1, th, 72, 62,H, 65,H);
+        th = notes(hrn, 1, th, 72, 67,H, 70,H);
+        th = notes(hrn, 1, th, 72, 67,Q, 65,Q, 63,Q, 60,Q);
+        th = notes(hrn, 1, th, 68, 58,H, 55,H);
+        th = notes(hrn, 1, th, 75, 63,H, 67,H);
+        th = notes(hrn, 1, th, 72, 62,H, 58,H);
+        th = notes(hrn, 1, th, 68, 67,Q, 65,Q, 63,Q, 62,Q);
+        notes(hrn, 1, th, 75, 55,W);
+
+        // ── ch2 弦樂墊（進行曲穩定背景）─────────────────────────
+        Track chd = seq.createTrack();
+        setProgram(chd, 2, STRINGS);
+        setVolume(chd, 2, 40);
+        // Gm - Cm - Dm - Gm - Eb - Bb - Dm - Gm
+        int[][][] prog = {
+            {{55,58,62}}, {{48,53,60}}, {{50,53,57}}, {{55,58,62}},
+            {{51,55,58}}, {{46,50,53}}, {{50,53,57}}, {{55,58,62}}
+        };
+        for (int b = 0; b < 8; b++) {
+            for (int n : prog[b][0]) addNote(chd, 2, n, b * W, W - 30, 35);
+        }
+
+        // ── ch9 進行曲鼓組（一拍一大鼓，小鼓在2/4拍）────────────
+        Track drm = seq.createTrack();
+        setVolume(drm, 9, 85);
+        for (int b = 0; b < 8; b++) {
+            int bt = b * W;
+            addNote(drm, 9, KICK,  bt,          S - 5, 100);
+            addNote(drm, 9, KICK,  bt + Q,       S - 5, 80);
+            addNote(drm, 9, SNARE, bt + H,        S - 5, 90);
+            addNote(drm, 9, KICK,  bt + H + Q,    S - 5, 75);
+            for (int i = 0; i < 4; i++) addNote(drm, 9, RIDE, bt + i * Q, S - 5, 55);
+        }
+
+        // ── ch3 電貝斯（穩步行進）────────────────────────────────
+        Track bas = seq.createTrack();
+        setProgram(bas, 3, BASS_ELECTRIC);
+        setVolume(bas, 3, 88);
+        int[] bRoots = {43, 48, 50, 43, 51, 46, 50, 43}; // G2 C3 D3 G2 Eb3 Bb2 D3 G2
+        for (int b = 0; b < 8; b++) {
+            int bt = b * W;
+            addNote(bas, 3, bRoots[b],      bt,          Q - 15, 88);
+            addNote(bas, 3, bRoots[b] + 5,  bt + Q,      Q - 15, 72);
+            addNote(bas, 3, bRoots[b] + 7,  bt + H,      Q - 15, 82);
+            addNote(bas, 3, bRoots[b],      bt + H + Q,  Q - 15, 70);
+        }
+
+        return seq;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ICEPOST — "冰風中的驛站"
+    // B小調 · 96 BPM · 6/8拍 · 8小節循環
+    // 長笛主旋律輕柔而孤寂，馬林巴伴奏像結冰的水珠，
+    // 豎琴三連音描繪在驛站爐火旁靜待的片刻安寧。
+    // ═══════════════════════════════════════════════════════════
+    private static Sequence buildIcePost() throws InvalidMidiDataException {
+        Sequence seq = new Sequence(Sequence.PPQ, PPQ);
+        addTempo(seq.createTrack(), 96);
+
+        // 6/8 拍：1小節 = 6個八分音符 = 6×E = 6×240 = 1440 ticks
+        final int BAR = 6 * E;   // = 1440
+        final int DQ2 = 3 * E;   // 附點四分 = 720
+
+        // ── ch0 長笛主旋律（孤寂、空曠）─────────────────────────
+        Track mel = seq.createTrack();
+        setProgram(mel, 0, FLUTE);
+        setVolume(mel, 0, 88);
+        int t = 0;
+        // 小節1: B5(DQ2) A5(E) F#5(E) G5(E)
+        addNote(mel, 0, 83, t,         DQ2 - 10, 78); t += DQ2;
+        addNote(mel, 0, 81, t,         E   - 10, 72); t += E;
+        addNote(mel, 0, 78, t,         E   - 10, 70); t += E;
+        addNote(mel, 0, 79, t,         E   - 10, 68); t += E;
+        // 小節2: F#5(DQ2) E5(E) D5(DQ2)
+        addNote(mel, 0, 78, t,         DQ2 - 10, 75); t += DQ2;
+        addNote(mel, 0, 76, t,         E   - 10, 68); t += E;
+        addNote(mel, 0, 74, t,         DQ2 - 10, 72); t += DQ2;
+        // 小節3: E5(E) F#5(E) G5(E) A5(E) B5(E) C#6(E)  — 上行六連音
+        for (int n : new int[]{76, 78, 79, 81, 83, 85}) {
+            addNote(mel, 0, n, t, E - 10, 70); t += E;
+        }
+        // 小節4: B5(DQ2) G5(E) F#5(DQ2)
+        addNote(mel, 0, 83, t, DQ2 - 10, 78); t += DQ2;
+        addNote(mel, 0, 79, t, E   - 10, 70); t += E;
+        addNote(mel, 0, 78, t, DQ2 - 10, 75); t += DQ2;
+        // 小節5: A5(DQ2) G5(E) F#5(E) E5(E)
+        addNote(mel, 0, 81, t, DQ2 - 10, 78); t += DQ2;
+        addNote(mel, 0, 79, t, E   - 10, 72); t += E;
+        addNote(mel, 0, 78, t, E   - 10, 70); t += E;
+        addNote(mel, 0, 76, t, E   - 10, 68); t += E;
+        // 小節6: D5(DQ2) E5(E) F#5(DQ2)
+        addNote(mel, 0, 74, t, DQ2 - 10, 72); t += DQ2;
+        addNote(mel, 0, 76, t, E   - 10, 65); t += E;
+        addNote(mel, 0, 78, t, DQ2 - 10, 70); t += DQ2;
+        // 小節7: G5(E) F#5(E) E5(E) D5(E) C#5(E) B4(E)  — 下行六連音
+        for (int n : new int[]{79, 78, 76, 74, 73, 71}) {
+            addNote(mel, 0, n, t, E - 10, 68); t += E;
+        }
+        // 小節8: B4(BAR) — 長音歸根，等待再循環
+        addNote(mel, 0, 71, t, BAR - 20, 72);
+
+        // ── ch1 馬林巴分解和弦（三連音，水珠滴落感）─────────────
+        Track mar = seq.createTrack();
+        setProgram(mar, 1, MARIMBA);
+        setVolume(mar, 1, 50);
+        // Bm - G - D - A - Em - F#m - G - Bm（6/8每拍一音）
+        int[][] marPat = {
+            {47, 50, 54}, // Bm
+            {43, 47, 50}, // G
+            {38, 45, 50}, // D
+            {45, 49, 52}, // A
+            {40, 43, 47}, // Em
+            {42, 45, 49}, // F#m
+            {43, 47, 50}, // G
+            {47, 50, 54}  // Bm
+        };
+        for (int b = 0; b < 8; b++) {
+            int[] p = marPat[b];
+            // 6/8拍：每小節2拍，每拍3個八分音符（三連音感）
+            for (int beat = 0; beat < 2; beat++) {
+                for (int ei = 0; ei < 3; ei++) {
+                    int note = p[ei % p.length];
+                    addNote(mar, 1, note, b * BAR + beat * DQ2 + ei * E, E - 15, 44);
+                }
+            }
+        }
+
+        // ── ch2 豎琴長音（寒夜裡的餘音）─────────────────────────
+        Track hrp = seq.createTrack();
+        setProgram(hrp, 2, HARP);
+        setVolume(hrp, 2, 36);
+        int[][] harpPad = {
+            {47, 54}, // Bm
+            {43, 50}, // G
+            {38, 50}, // D
+            {45, 52}, // A
+            {40, 47}, // Em
+            {42, 49}, // F#m
+            {43, 50}, // G
+            {47, 54}  // Bm
+        };
+        for (int b = 0; b < 8; b++) {
+            for (int n : harpPad[b]) addNote(hrp, 2, n, b * BAR, BAR - 30, 30);
+        }
+
+        // ── ch3 原聲貝斯（稀疏，每小節只落一音）─────────────────
+        Track bas = seq.createTrack();
+        setProgram(bas, 3, BASS_ACOUSTIC);
+        setVolume(bas, 3, 52);
+        int[] bNotes = {35, 31, 26, 33, 28, 30, 31, 35}; // B1 G1 D1 A1 E1 F#1 G1 B1
+        for (int b = 0; b < 8; b++) {
+            addNote(bas, 3, bNotes[b], b * BAR, DQ2 - 20, 50);
         }
 
         return seq;

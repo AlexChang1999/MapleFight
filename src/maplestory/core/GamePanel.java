@@ -9,6 +9,8 @@ import maplestory.item.DropItem;
 import maplestory.job.Skill;
 import maplestory.keybind.ActionType;
 import maplestory.keybind.KeyBindingManager;
+import maplestory.audio.SFX;
+import maplestory.audio.SoundManager;
 import maplestory.map.BaseMap;
 import maplestory.quest.QuestManager;
 import maplestory.ui.DialoguePanel;
@@ -299,6 +301,12 @@ public class GamePanel extends JPanel implements Runnable {
                 }
 
                 if (action == null) return;
+                // M 鍵靜音（固定鍵，不可改綁）
+                if (kc == KeyEvent.VK_M) {
+                    SoundManager.get().toggleMute();
+                    return;
+                }
+
                 switch (action) {
                     case UI_STATUS    -> togglePanel("status");
                     case UI_SKILL     -> togglePanel("skill");
@@ -523,18 +531,21 @@ public class GamePanel extends JPanel implements Runnable {
                 player.gainGold(drop.getGoldAmount());
                 pickupNotice      = "+" + drop.getGoldAmount() + " G";
                 pickupNoticeTimer = 1.5;
+                SoundManager.get().playSFX(SFX.ITEM_PICKUP);
             }
             case CONSUMABLE -> {
                 boolean ok = player.getInventory().addConsumable(drop.getConsumable());
                 pickupNotice      = ok ? "撿取：" + drop.getConsumable().getName()
                                        : "消耗品背包已滿！";
                 pickupNoticeTimer = 1.5;
+                if (ok) SoundManager.get().playSFX(SFX.ITEM_PICKUP);
             }
             case EQUIPMENT -> {
                 boolean ok = player.getInventory().addEquipment(drop.getEquipment());
                 pickupNotice      = ok ? "撿取：" + drop.getEquipment().getName()
                                        : "裝備背包已滿！";
                 pickupNoticeTimer = 1.5;
+                if (ok) SoundManager.get().playSFX(SFX.ITEM_PICKUP);
             }
         }
     }
@@ -568,6 +579,7 @@ public class GamePanel extends JPanel implements Runnable {
     /** 切換面板：再按一次關閉 */
     private void togglePanel(String name) {
         activePanel = name.equals(activePanel) ? null : name;
+        SoundManager.get().playSFX(SFX.UI_CLICK);
     }
 
     /** 根據目前地圖回傳對應的怪物列表（村莊類地圖回傳空列表） */
@@ -652,6 +664,7 @@ public class GamePanel extends JPanel implements Runnable {
         int pendingSkill = inputHandler.pollPendingSkill();
         if (pendingSkill >= 0 && !curMonsters.isEmpty()) {
             player.useSkill(pendingSkill, curMonsters);
+            SoundManager.get().playSFX(pendingSkill == 0 ? SFX.SKILL_THRUST : SFX.SKILL_SHOCKWAVE);
         }
 
         // 怪物更新
@@ -881,7 +894,8 @@ public class GamePanel extends JPanel implements Runnable {
         // 操作說明（右下角，9pt 小字）
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 9));
         g.setColor(new Color(110, 110, 150));
-        g.drawString("移:AD 跳:W 攻:Z  按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "] F5存", 507, hudY + 58);
+        String muteLabel = SoundManager.get().isMuted() ? "[靜音]M" : "[音效]M";
+        g.drawString("移:AD 跳:W 攻:Z  按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "] F5存 " + muteLabel, 507, hudY + 58);
 
         // ── EXP 條（最底部 7px）──────────────────────────
         int expY = SCREEN_HEIGHT - 7;

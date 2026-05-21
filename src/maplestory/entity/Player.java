@@ -421,6 +421,7 @@ public class Player {
         Equipment old = equipments.put(e.getSlot(), e);   // 穿上，取回舊裝備
         if (old != null) inventory.addEquipment(old);      // 舊裝備放回背包（必定成功）
         recalculateStats();
+        SoundManager.get().playSFX(SFX.EQUIP);
         return true;
     }
 

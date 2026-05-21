@@ -1,5 +1,7 @@
 package maplestory.ui;
 
+import maplestory.audio.SFX;
+import maplestory.audio.SoundManager;
 import maplestory.entity.Player;
 import maplestory.item.Consumable;
 import maplestory.item.Equipment;
@@ -400,6 +402,7 @@ public class ShopPanel {
         }
         notice = "購買成功：" + entry.getName();
         noticeTimer = 2.0;
+        SoundManager.get().playSFX(SFX.SHOP_BUY);
         return true;
     }
 
