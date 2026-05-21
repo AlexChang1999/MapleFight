@@ -93,7 +93,17 @@ public class EquipPanel {
             int sx  = startX + col * (SLOT_SIZE + GAP_X);
             int sy  = SLOTS_START_Y + row * (SLOT_SIZE + GAP_Y);
 
-            drawSlot(g, sx, sy, i, SLOT_ORDER[i], equips.get(SLOT_ORDER[i]));
+            drawSlot(g, sx, sy, i, SLOT_ORDER[i], equips.get(SLOT_ORDER[i]), equips);
+        }
+
+        // 套裝加成提示
+        int[] setB = Equipment.calcSetBonus(equips.values());
+        if (setB[0] + setB[1] + setB[2] + setB[3] > 0) {
+            int by = SLOTS_START_Y + 4 * (SLOT_SIZE + GAP_Y) + 6;
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 9));
+            g.setColor(new Color(255, 200, 80));
+            g.drawString("套裝加成 STR+" + setB[0] + " DEF+" + setB[1]
+                + " ATK+" + setB[2] + " HP+" + setB[3], PX + 10, by);
         }
 
         // 通知文字
@@ -115,12 +125,15 @@ public class EquipPanel {
     }
 
     private void drawSlot(Graphics2D g, int sx, int sy, int idx,
-                          EquipSlot slot, Equipment equip) {
+                          EquipSlot slot, Equipment equip,
+                          Map<EquipSlot, Equipment> allEquips) {
         boolean hov = (hoveredSlot == idx);
+        int cx = sx + SLOT_SIZE / 2;
+        int cy = sy + SLOT_SIZE / 2;
 
-        // 格子背景
         if (equip != null) {
             Color rc = equip.getRarity().color;
+            // 背景
             g.setColor(new Color(rc.getRed(), rc.getGreen(), rc.getBlue(), 30));
             g.fillRoundRect(sx, sy, SLOT_SIZE, SLOT_SIZE, 8, 8);
             g.setColor(hov ? rc.brighter() : rc.darker().darker());
@@ -128,37 +141,145 @@ public class EquipPanel {
             g.drawRoundRect(sx, sy, SLOT_SIZE, SLOT_SIZE, 8, 8);
             g.setStroke(new BasicStroke(1f));
 
-            // 裝備名稱（換行顯示）
-            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 9));
-            g.setColor(hov ? rc.brighter() : rc);
-            drawSlotText(g, equip.getName(), sx + 4, sy + 14, SLOT_SIZE - 8, 10);
+            // 中央槽位圖示（半透明，顯示裝備種類）
+            Color iconCol = new Color(rc.getRed(), rc.getGreen(), rc.getBlue(), 90);
+            drawSlotIcon(g, slot, cx, cy, 26, iconCol);
 
-            // 稀有度點
+            // 裝備名稱（底部小字）
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 8));
+            g.setColor(hov ? rc.brighter() : rc);
+            FontMetrics fm = g.getFontMetrics();
+            String name = equip.getName().length() > 5
+                ? equip.getName().substring(0, 5) + "…" : equip.getName();
+            g.drawString(name, sx + (SLOT_SIZE - fm.stringWidth(name)) / 2,
+                         sy + SLOT_SIZE - 6);
+
+            // 稀有度點（右上角）
             g.setColor(rc);
             g.fillOval(sx + SLOT_SIZE - 11, sy + 4, 7, 7);
 
-            // 懸停時顯示說明
+            // 套裝件數 badge（左下角，若有套裝）
+            if (equip.getSetId() != null) {
+                int cnt = countSetPieces(allEquips, equip.getSetId());
+                if (cnt > 1) {
+                    g.setColor(new Color(255, 210, 50, 200));
+                    g.fillRoundRect(sx + 2, sy + SLOT_SIZE - 14, 16, 11, 3, 3);
+                    g.setFont(new Font("Arial", Font.BOLD, 8));
+                    g.setColor(Color.BLACK);
+                    g.drawString("×" + cnt, sx + 4, sy + SLOT_SIZE - 5);
+                }
+            }
+
+            // 懸停說明（跨欄顯示在格子右方）
             if (hov) {
-                g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 9));
-                g.setColor(new Color(200, 210, 240));
-                g.drawString(equip.getDescription(), sx + 4, sy + SLOT_SIZE - 8);
+                int tx = sx + SLOT_SIZE + 5;
+                int tw = PX + PW - tx - 4;
+                if (tw > 20) {
+                    g.setColor(new Color(10, 14, 40, 210));
+                    g.fillRoundRect(tx, sy, tw, SLOT_SIZE, 6, 6);
+                    g.setColor(rc);
+                    g.drawRoundRect(tx, sy, tw, SLOT_SIZE, 6, 6);
+                    g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 9));
+                    g.setColor(rc.brighter());
+                    g.drawString(equip.getName(), tx + 4, sy + 14);
+                    g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 8));
+                    g.setColor(new Color(190, 200, 230));
+                    drawSlotText(g, equip.getDescription(), tx + 4, sy + 26, tw - 8, 10);
+                    g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 8));
+                    g.setColor(new Color(100, 220, 120));
+                    g.drawString("點擊脫裝", tx + 4, sy + SLOT_SIZE - 5);
+                }
             }
         } else {
-            // 空格
+            // 空格背景
             g.setColor(new Color(20, 22, 58));
             g.fillRoundRect(sx, sy, SLOT_SIZE, SLOT_SIZE, 8, 8);
-            g.setColor(hov ? new Color(70, 80, 140) : new Color(45, 48, 105));
+            g.setColor(hov ? new Color(70, 80, 140) : new Color(40, 44, 98));
             g.drawRoundRect(sx, sy, SLOT_SIZE, SLOT_SIZE, 8, 8);
 
-            // 欄位名稱
-            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-            g.setColor(new Color(80, 85, 130));
+            // 槽位圖示（居中，暗色）
+            drawSlotIcon(g, slot, cx, cy - 4, 22, new Color(60, 68, 120));
+
+            // 欄位名稱（圖示下方）
+            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 9));
+            g.setColor(new Color(70, 78, 120));
             FontMetrics fm = g.getFontMetrics();
             String slotName = slot.getDisplayName();
             g.drawString(slotName,
                          sx + (SLOT_SIZE - fm.stringWidth(slotName)) / 2,
-                         sy + SLOT_SIZE / 2 + 4);
+                         sy + SLOT_SIZE - 6);
         }
+    }
+
+    /** 依槽位種類繪製代表性圖示（以 cx,cy 為中心，size 為大小） */
+    private void drawSlotIcon(Graphics2D g, EquipSlot slot, int cx, int cy, int size, Color col) {
+        g.setColor(col);
+        int h = size, w = size;
+        Stroke prev = g.getStroke();
+        switch (slot) {
+            case HELMET -> {
+                // 半弧頭盔 + 帽緣
+                g.fillArc(cx - w / 2, cy - h / 2, w, h, 0, 180);
+                g.fillRect(cx - w / 2 - 2, cy, w + 4, Math.max(2, h / 5));
+            }
+            case WEAPON -> {
+                // 對角刀形：刀身 + 護手 + 刀柄
+                g.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.drawLine(cx - w / 2, cy + h / 2, cx + w / 2, cy - h / 2);  // 刀身
+                g.setStroke(new BasicStroke(1.5f));
+                g.drawLine(cx - w / 4, cy + h / 4, cx + w / 5, cy - h / 6);  // 護手
+                g.setStroke(prev);
+            }
+            case TOP -> {
+                // T 形上衣
+                g.fillRect(cx - w / 2, cy - h / 2, w, h / 4);        // 肩
+                g.fillRect(cx - w / 4, cy - h / 2 + h / 4, w / 2, h * 3 / 4);  // 身
+            }
+            case GLOVES -> {
+                // 四指 + 手掌
+                g.fillRoundRect(cx - w / 3, cy, w * 2 / 3, h / 3, 3, 3); // 手掌
+                for (int f = 0; f < 4; f++) {
+                    int fx = cx - w / 3 + f * (w * 2 / 3 / 4) + 1;
+                    g.fillRect(fx, cy - h / 3, Math.max(1, w / 5), h / 3);
+                }
+            }
+            case BOTTOM -> {
+                // 腰帶 + 兩腿
+                int lw = Math.max(2, w / 3);
+                g.fillRect(cx - w / 2, cy - h / 4, w, h / 5);          // 腰
+                g.fillRect(cx - w / 2, cy, lw, h / 2);                  // 左腿
+                g.fillRect(cx + w / 2 - lw, cy, lw, h / 2);            // 右腿
+            }
+            case BOOTS -> {
+                // 靴腿 + 靴底
+                int bw = Math.max(3, w / 2);
+                g.fillRect(cx - bw / 2, cy - h / 2, bw, h * 2 / 3);   // 靴腿
+                g.fillRect(cx - bw / 2, cy + h / 6, bw + w / 5, h / 4); // 靴底
+            }
+            case CAPE -> {
+                // 下半圓弧披風
+                g.fillArc(cx - w / 2, cy - h / 3, w, h, 180, 180);
+                g.fillRect(cx - 2, cy - h / 2, 4, h / 3); // 領結
+            }
+            case EARRING -> {
+                // 兩個小圓耳環
+                int r = Math.max(2, w / 4);
+                g.fillOval(cx - w / 3 - r, cy - r, r * 2, r * 2);
+                g.fillOval(cx + w / 3 - r, cy - r, r * 2, r * 2);
+                g.setStroke(new BasicStroke(1f));
+                g.drawLine(cx - w / 3, cy + r, cx - w / 3, cy + r + h / 5);
+                g.drawLine(cx + w / 3, cy + r, cx + w / 3, cy + r + h / 5);
+            }
+        }
+        g.setStroke(prev);
+    }
+
+    /** 計算 allEquips 中屬於指定 setId 的件數 */
+    private int countSetPieces(Map<EquipSlot, Equipment> allEquips, String setId) {
+        if (setId == null) return 0;
+        return (int) allEquips.values().stream()
+            .filter(e -> setId.equals(e.getSetId()))
+            .count();
     }
 
     /** 簡單的格內換行文字 */
