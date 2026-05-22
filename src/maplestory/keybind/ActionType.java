@@ -28,17 +28,24 @@ public enum ActionType {
     SKILL_1   ("技能：衝擊波", Category.GAME, new Color(140,  80, 230)),
 
     // ── 介面開關 ─────────────────────────────────────────────
-    UI_STATUS    ("開啟狀態面板", Category.UI, new Color( 80, 200, 120)),
-    UI_SKILL     ("開啟技能面板", Category.UI, new Color( 80, 200, 120)),
-    UI_EQUIP     ("開啟裝備面板", Category.UI, new Color( 80, 200, 120)),
-    UI_INVENTORY ("開啟背包",    Category.UI, new Color(200, 170,  80)),
-    UI_INTERACT  ("NPC 互動",    Category.UI, new Color(255, 210,  60)),
-    UI_KEYBIND   ("按鍵設定",    Category.UI, new Color(180, 180, 180));
+    UI_STATUS    ("開啟狀態面板", Category.UI,     new Color( 80, 200, 120)),
+    UI_SKILL     ("開啟技能面板", Category.UI,     new Color( 80, 200, 120)),
+    UI_EQUIP     ("開啟裝備面板", Category.UI,     new Color( 80, 200, 120)),
+    UI_INVENTORY ("開啟背包",    Category.UI,     new Color(200, 170,  80)),
+    UI_INTERACT  ("NPC 互動",    Category.UI,     new Color(255, 210,  60)),
+    UI_KEYBIND   ("按鍵設定",    Category.UI,     new Color(180, 180, 180)),
+
+    // ── 快捷欄（可重新綁任意鍵） ─────────────────────────────
+    HOTBAR_1     ("快捷欄 1",   Category.HOTBAR, new Color(220, 160,  40)),
+    HOTBAR_2     ("快捷欄 2",   Category.HOTBAR, new Color(220, 160,  40)),
+    HOTBAR_3     ("快捷欄 3",   Category.HOTBAR, new Color(220, 160,  40)),
+    HOTBAR_4     ("快捷欄 4",   Category.HOTBAR, new Color(220, 160,  40)),
+    HOTBAR_5     ("快捷欄 5",   Category.HOTBAR, new Color(220, 160,  40));
 
     // ─────────────────────────────────────────────────────────
-    public final String   displayName; // 面板上顯示的名稱
-    public final Category category;    // 分類（用於在面板分組）
-    public final Color    color;       // 代表色（拖曳 chip 顏色）
+    public final String   displayName;
+    public final Category category;
+    public final Color    color;
 
     ActionType(String name, Category category, Color color) {
         this.displayName = name;
@@ -48,8 +55,9 @@ public enum ActionType {
 
     // ── 動作分類 ─────────────────────────────────────────────
     public enum Category {
-        GAME ("遊戲操作"),
-        UI   ("介面開關");
+        GAME   ("遊戲操作"),
+        UI     ("介面開關"),
+        HOTBAR ("快捷欄");
 
         public final String label;
         Category(String label) { this.label = label; }

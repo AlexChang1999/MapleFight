@@ -62,10 +62,11 @@ public class Player {
     private int     attackComboIndex = 0; // 0=劈砍, 1=突刺（每次切換）
 
     // ── 梯子攀爬 ─────────────────────────────────────────────
-    private boolean movingUp      = false;
-    private boolean movingDown    = false;
-    private boolean onLadder      = false;
-    private Ladder  currentLadder = null;
+    private boolean movingUp           = false;
+    private boolean movingDown         = false;
+    private boolean onLadder           = false;
+    private Ladder  currentLadder      = null;
+    private double  ladderExitCooldown = 0; // 離梯後短暫禁止重新進入梯子
     private static final double CLIMB_SPEED = 115;
 
     // ── 冰雪緩速 ─────────────────────────────────────────────
@@ -162,9 +163,10 @@ public class Player {
     public void update(double dt, BaseMap map) {
         idleTimer           += dt;
         timeSinceLastCombat += dt;
-        if (slowTimer    > 0) { slowTimer    -= dt; if (slowTimer    <= 0) slowFactor = 1.0; }
-        if (levelUpTimer > 0)   levelUpTimer -= dt;
-        if (hurtTimer    > 0)   hurtTimer    -= dt;
+        if (slowTimer          > 0) { slowTimer    -= dt; if (slowTimer    <= 0) slowFactor = 1.0; }
+        if (levelUpTimer       > 0)   levelUpTimer -= dt;
+        if (hurtTimer          > 0)   hurtTimer    -= dt;
+        if (ladderExitCooldown > 0)   ladderExitCooldown -= dt;
 
         // ── 梯子偵測 ─────────────────────────────────────────
         boolean wasOnLadder = onLadder;
@@ -172,7 +174,8 @@ public class Player {
         for (Ladder lad : map.getLadders()) {
             if (lad.getZone().intersects(
                     new Rectangle((int) x, (int) y, WIDTH, HEIGHT))) {
-                if (wasOnLadder || movingUp || movingDown) {
+                // 離梯冷卻期間禁止重新進入，避免踏上頂端平台後被瞬間拉回梯子
+                if (ladderExitCooldown <= 0 && (wasOnLadder || movingUp || movingDown)) {
                     onLadder      = true;
                     currentLadder = lad;
                     // 對齊梯子中心 X（平滑插值）
@@ -193,18 +196,20 @@ public class Player {
 
             // 抵達梯子頂端 → 踏上平台
             if (currentLadder != null && y + HEIGHT <= currentLadder.getTopY()) {
-                y        = currentLadder.getTopY() - HEIGHT;
-                onLadder = false;
-                velY     = 0;
-                onGround = true;
-                currentLadder = null;
+                y                  = currentLadder.getTopY() - HEIGHT;
+                onLadder           = false;
+                velY               = 0;
+                onGround           = true;
+                ladderExitCooldown = 0.3; // 防止重新被梯子捕捉
+                currentLadder      = null;
             }
             // 抵達梯子底端 → 落地離梯
             else if (currentLadder != null && y + HEIGHT >= currentLadder.getBotY()) {
-                y        = currentLadder.getBotY() - HEIGHT;
-                onLadder = false;
-                velY     = 0;
-                currentLadder = null;
+                y                  = currentLadder.getBotY() - HEIGHT;
+                onLadder           = false;
+                velY               = 0;
+                ladderExitCooldown = 0.3; // 防止立即被梯子重新捕捉
+                currentLadder      = null;
             }
         } else {
             // 剛脫離梯子且正在上升 → 清除上升慣性，避免飄移
@@ -235,7 +240,8 @@ public class Player {
                 if (x + WIDTH <= p.getX() || x >= p.getX() + p.getWidth()) continue;
                 double feet     = y + HEIGHT;
                 double prevFeet = feet - velY * dt;
-                if (prevFeet <= p.getY() && feet >= p.getY() && velY > 0) {
+                // velY >= 0：涵蓋梯子頂端踏台時 velY=0 的特殊情況
+                if (prevFeet <= p.getY() && feet >= p.getY() && velY >= 0) {
                     y = p.getY() - HEIGHT; velY = 0; onGround = true;
                 }
             }

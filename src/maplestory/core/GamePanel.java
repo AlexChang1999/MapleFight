@@ -258,8 +258,13 @@ public class GamePanel extends JPanel implements Runnable {
                 // 暫停中不處理其他 UI 按鍵
                 if (paused) return;
 
+                // M 鍵靜音（固定鍵，不可改綁，需在 getAction 之前處理）
+                if (kc == KeyEvent.VK_M) {
+                    SoundManager.get().toggleMute();
+                    return;
+                }
+
                 ActionType action = keyBindings.getAction(kc);
-                if (action == null) return;
 
                 // 對話面板開著時：↑↓ 導航、Enter 確認、其餘按鍵忽略
                 if ("dialogue".equals(activePanel)) {
@@ -273,39 +278,14 @@ public class GamePanel extends JPanel implements Runnable {
                     return; // 其他按鍵對話期間忽略
                 }
 
-                // 按鍵配置面板開著時，任何 UI 動作都關閉它
+                // 按鍵配置面板開著時，任何按鍵都關閉它
                 if ("keybind".equals(activePanel)) {
                     activePanel = null;
-                    keyBindings.saveToFile(); // 關閉鍵盤配置面板時自動存檔
-                    return;
-                }
-
-                // ── 快捷欄 1-5（固定鍵，不可改綁）────────────
-                if (kc >= KeyEvent.VK_1 && kc <= KeyEvent.VK_5) {
-                    int slot = kc - KeyEvent.VK_1;
-                    if ("inventory".equals(activePanel)) {
-                        // 背包消耗品懸停中 → 指派到快捷欄
-                        maplestory.item.Consumable hovered =
-                            inventoryPanel.getHoveredConsumable(player.getInventory());
-                        if (hovered != null) {
-                            hotbar.assign(slot, hovered);
-                            pickupNotice      = "已指派「" + hovered.getName() + "」到快捷欄 " + (slot + 1);
-                            pickupNoticeTimer = 1.5;
-                        }
-                    } else if (activePanel == null) {
-                        // 正常遊戲中 → 使用快捷欄物品
-                        String result = hotbar.use(slot, player);
-                        handleConsumableResult(result);
-                    }
+                    keyBindings.saveToFile();
                     return;
                 }
 
                 if (action == null) return;
-                // M 鍵靜音（固定鍵，不可改綁）
-                if (kc == KeyEvent.VK_M) {
-                    SoundManager.get().toggleMute();
-                    return;
-                }
 
                 switch (action) {
                     case UI_STATUS    -> togglePanel("status");
@@ -314,6 +294,11 @@ public class GamePanel extends JPanel implements Runnable {
                     case UI_INVENTORY -> togglePanel("inventory");
                     case UI_INTERACT  -> handleInteract();
                     case UI_KEYBIND   -> togglePanel("keybind");
+                    case HOTBAR_1     -> handleHotbar(0);
+                    case HOTBAR_2     -> handleHotbar(1);
+                    case HOTBAR_3     -> handleHotbar(2);
+                    case HOTBAR_4     -> handleHotbar(3);
+                    case HOTBAR_5     -> handleHotbar(4);
                     default           -> {}
                 }
             }
@@ -881,7 +866,7 @@ public class GamePanel extends JPanel implements Runnable {
         if (player.getJob() != null) drawSkillSlots(g, hudY);
 
         // ── 快捷欄（HUD 中央，y+48）──────────────────────
-        hotbar.draw(g, hudY);
+        hotbar.draw(g, hudY, getHotbarKeyLabels());
 
         // ── 右區：四個快捷按鈕（71px×22px，間距 3px）──────
         // 共 4×71 + 3×3 = 284+9 = 293px，起點 x = 800-293 = 507
@@ -913,6 +898,34 @@ public class GamePanel extends JPanel implements Runnable {
     private String getBoundKeyName(ActionType action) {
         Integer kc = keyBindings.getKeyFor(action);
         return kc != null ? KeyBindingManager.keyName(kc) : "-";
+    }
+
+    private String[] getHotbarKeyLabels() {
+        ActionType[] acts = {
+            ActionType.HOTBAR_1, ActionType.HOTBAR_2, ActionType.HOTBAR_3,
+            ActionType.HOTBAR_4, ActionType.HOTBAR_5
+        };
+        String[] labels = new String[5];
+        for (int i = 0; i < 5; i++) {
+            Integer kc = keyBindings.getKeyFor(acts[i]);
+            labels[i] = kc != null ? KeyBindingManager.keyName(kc) : String.valueOf(i + 1);
+        }
+        return labels;
+    }
+
+    private void handleHotbar(int slot) {
+        if ("inventory".equals(activePanel)) {
+            maplestory.item.Consumable hovered =
+                inventoryPanel.getHoveredConsumable(player.getInventory());
+            if (hovered != null) {
+                hotbar.assign(slot, hovered);
+                pickupNotice      = "已指派「" + hovered.getName() + "」到快捷欄 " + (slot + 1);
+                pickupNoticeTimer = 1.5;
+            }
+        } else if (activePanel == null) {
+            String result = hotbar.use(slot, player);
+            handleConsumableResult(result);
+        }
     }
 
     /** 技能槽繪製（中右區，y+8 開始，槽 34×34）*/

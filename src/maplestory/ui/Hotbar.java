@@ -55,8 +55,11 @@ public class Hotbar {
 
     // ── 繪製 ─────────────────────────────────────────────────
 
-    /** 繪製於 HUD 中央，y = hudY + 48（26px 高） */
-    public void draw(Graphics2D g, int hudY) {
+    /**
+     * 繪製於 HUD 中央，y = hudY + 48（26px 高）。
+     * @param keyLabels 每格目前綁定的按鍵名稱（長度 5），傳入 null 則顯示 1-5
+     */
+    public void draw(Graphics2D g, int hudY, String[] keyLabels) {
         int totalW = SLOTS * SLOT_SIZE + (SLOTS - 1) * GAP;
         int startX = (800 - totalW) / 2;
         int startY = hudY + 48;
@@ -70,32 +73,46 @@ public class Hotbar {
             int sx = startX + i * (SLOT_SIZE + GAP);
             int sy = startY;
 
-            // 格子背景
-            g.setColor(new Color(22, 28, 68));
-            g.fillRect(sx, sy, SLOT_SIZE, SLOT_SIZE);
+            // ── 格子背景（有物品時帶稀有度底色）───────────────
+            if (slots[i] != null) {
+                Color col = slots[i].getRarity().color;
+                g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 55));
+                g.fillRect(sx, sy, SLOT_SIZE, SLOT_SIZE);
+            } else {
+                g.setColor(new Color(22, 28, 68));
+                g.fillRect(sx, sy, SLOT_SIZE, SLOT_SIZE);
+            }
 
-            // 格子邊框（有物品時亮邊）
-            g.setColor(slots[i] != null ? new Color(90, 120, 220) : new Color(45, 55, 120));
+            // ── 格子邊框 ───────────────────────────────────────
+            g.setColor(slots[i] != null ? new Color(200, 155, 45) : new Color(45, 55, 120));
             g.drawRect(sx, sy, SLOT_SIZE - 1, SLOT_SIZE - 1);
+            // 頂邊高光（3D 感）
+            g.setColor(slots[i] != null ? new Color(255, 220, 100, 80) : new Color(80, 90, 160, 60));
+            g.drawLine(sx + 1, sy + 1, sx + SLOT_SIZE - 2, sy + 1);
 
             if (slots[i] != null) {
                 Color col = slots[i].getRarity().color;
-                // 稀有度底色
-                g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 70));
-                g.fillRect(sx + 1, sy + 1, SLOT_SIZE - 2, SLOT_SIZE - 2);
-                // 名稱縮寫（前 2 個字元）
-                g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 8));
+                // 名稱縮寫
+                g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 8));
                 g.setColor(col.brighter());
                 String abbr = slots[i].getName().length() > 2
                     ? slots[i].getName().substring(0, 2) : slots[i].getName();
                 FontMetrics fm = g.getFontMetrics();
                 g.drawString(abbr, sx + (SLOT_SIZE - fm.stringWidth(abbr)) / 2, sy + 14);
+                // 稀有度底條
+                g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 120));
+                g.fillRect(sx + 1, sy + SLOT_SIZE - 4, SLOT_SIZE - 2, 3);
             }
 
-            // 槽位數字（右下角）
+            // ── 按鍵標籤（右下角，顯示綁定鍵名）─────────────
+            String keyLabel = (keyLabels != null && i < keyLabels.length)
+                ? keyLabels[i] : String.valueOf(i + 1);
             g.setFont(new Font("Arial", Font.BOLD, 7));
-            g.setColor(new Color(130, 135, 185));
-            g.drawString(String.valueOf(i + 1), sx + SLOT_SIZE - 7, sy + SLOT_SIZE - 2);
+            g.setColor(slots[i] != null ? new Color(220, 180, 60) : new Color(110, 115, 175));
+            FontMetrics fm2 = g.getFontMetrics();
+            g.drawString(keyLabel,
+                sx + SLOT_SIZE - fm2.stringWidth(keyLabel) - 2,
+                sy + SLOT_SIZE - 2);
         }
     }
 }

@@ -20,6 +20,8 @@
 | **Feat-2** | Hotbar 快捷欄（5格，1-5鍵指派/使用） | ui/Hotbar, GamePanel |
 | **Feat-1** | BGM & SFX 音效系統補全（frontier/icepost BGM + 全 SFX + M鍵靜音） | audio/BGMTrack, GamePanel |
 | **Feat-5** | 裝備面板槽位圖示 + 套裝件數 badge + 懸停浮層 | ui/EquipPanel |
+| **Feat-3** | Hotbar 可重新綁鍵（HOTBAR_1-5 ActionType、M鍵靜音修正、GamePanel 重構） | keybind/, core/GamePanel |
+| **Feat-4** | 按鍵設定面板視覺大改版（3D 鍵效、分類色條、緊湊排版支援 19 個動作） | ui/KeyBindingPanel |
 
 ---
 
@@ -38,7 +40,7 @@
 ## 3. 已知問題
 
 - `SkillPanel` 目前是框架佔位，職業轉職後未填入真實技能清單
-- Hotbar 目前不做持久化（每次開遊戲需重新指派）
+- Hotbar 不做持久化（每次開遊戲需重新指派），但按鍵綁定隨 keybindings.json 保存
 - BGM MIDI 音質依賴作業系統 SoundFont，Windows 11 預設效果較佳
 - 新手村右側傳送門等級門檻 15（冒險平原），對低等玩家可能偏嚴
 

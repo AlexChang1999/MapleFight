@@ -57,6 +57,13 @@ public class KeyBindingManager {
         bind(KeyEvent.VK_I, ActionType.UI_INVENTORY);
         bind(KeyEvent.VK_F, ActionType.UI_INTERACT);
         bind(KeyEvent.VK_B, ActionType.UI_KEYBIND);
+
+        // ── 快捷欄（預設 1-5，可重新綁任意鍵） ─────────────
+        bind(KeyEvent.VK_1, ActionType.HOTBAR_1);
+        bind(KeyEvent.VK_2, ActionType.HOTBAR_2);
+        bind(KeyEvent.VK_3, ActionType.HOTBAR_3);
+        bind(KeyEvent.VK_4, ActionType.HOTBAR_4);
+        bind(KeyEvent.VK_5, ActionType.HOTBAR_5);
     }
 
     // ── 綁定 / 解綁 ──────────────────────────────────────────

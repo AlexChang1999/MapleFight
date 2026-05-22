@@ -25,18 +25,17 @@ import java.util.List;
 public class KeyBindingPanel {
 
     // ── 面板邊界（螢幕絕對座標）───────────────────────────────
-    private static final int PX = 12, PY = 10;
-    private static final int PW = 776, PH = 548;
+    private static final int PX = 12, PY = 8;
+    private static final int PW = 776, PH = 562;
 
     // ── 動作面板（左欄）─────────────────────────────────────
     private static final int PAL_X    = PX + 10;
-    private static final int PAL_Y    = PY + 48;
+    private static final int PAL_Y    = PY + 50;
     private static final int PAL_W    = 178;
-    private static final int CHIP_H   = 30;
-    private static final int CHIP_GAP = 6;
+    private static final int CHIP_H   = 18;
+    private static final int CHIP_GAP = 2;
 
     // ── 鍵盤起點 ─────────────────────────────────────────────
-    /** 鍵盤繪製原點（絕對座標） */
     private static final int KB_X = PAL_X + PAL_W + 14;   // ≈ 214
     private static final int KB_Y = PAL_Y + 30;           // ≈ 88
 
@@ -46,32 +45,27 @@ public class KeyBindingPanel {
     private static final int KP = KS + KG;  // key pitch = 40
 
     // ── Reset 按鈕 ───────────────────────────────────────────
-    private final Rectangle resetBtn = new Rectangle(PX + PW - 100, PY + 10, 84, 24);
+    private final Rectangle resetBtn = new Rectangle(PX + PW - 100, PY + 12, 84, 24);
 
     // ── 資料 ─────────────────────────────────────────────────
     private final KeyBindingManager manager;
 
-    /** 鍵盤上每一個按鍵的描述物件 */
-    private final List<KeyCell> keyCells = new ArrayList<>();
-
-    /** 動作面板每個 Chip 的描述物件 */
+    private final List<KeyCell>    keyCells    = new ArrayList<>();
     private final List<ActionChip> actionChips = new ArrayList<>();
 
     // ── 拖曳狀態 ─────────────────────────────────────────────
-    private ActionType draggedAction = null;   // 正在拖曳的動作（null = 沒在拖）
-    private int        dragX, dragY;            // 滑鼠目前位置
-    private Integer    dragSourceKeyCode = null; // 若從按鍵開始拖，記錄來源 keyCode
+    private ActionType draggedAction     = null;
+    private int        dragX, dragY;
+    private Integer    dragSourceKeyCode = null;
 
     // ─────────────────────────────────────────────────────────
     // 內部資料類別
     // ─────────────────────────────────────────────────────────
 
-    /** 鍵盤上一個按鍵的幾何 + 標籤資料 */
     private static class KeyCell {
-        final String    label;    // 顯示文字（"Q"、"←"、"Space"）
-        final int       keyCode;  // Java VK 常數
-        final Rectangle rect;     // 螢幕絕對座標
-
+        final String    label;
+        final int       keyCode;
+        final Rectangle rect;
         KeyCell(String label, int keyCode, int x, int y, int w, int h) {
             this.label   = label;
             this.keyCode = keyCode;
@@ -79,15 +73,12 @@ public class KeyBindingPanel {
         }
     }
 
-    /** 動作面板中一個可拖曳的動作格子 */
     private static class ActionChip {
         final ActionType type;
         final Rectangle  rect;
         ActionChip(ActionType t, Rectangle r) { type = t; rect = r; }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 建構子
     // ─────────────────────────────────────────────────────────
     public KeyBindingPanel(KeyBindingManager manager) {
         this.manager = manager;
@@ -96,56 +87,44 @@ public class KeyBindingPanel {
     }
 
     // ─────────────────────────────────────────────────────────
-    // 初始化：鍵盤配置
+    // 鍵盤配置
     // ─────────────────────────────────────────────────────────
-
-    /**
-     * 建立所有按鍵格子（QWERTY 佈局 + 方向鍵）。
-     * 每列有不同的水平偏移量，模擬真實鍵盤的階梯排列。
-     */
     private void buildKeyboard() {
-        // ── 數字列（Row 0，無偏移）───────────────────────────
         addRow(new String[]{"1","2","3","4","5","6","7","8","9","0"},
                new int[]{KeyEvent.VK_1, KeyEvent.VK_2, KeyEvent.VK_3, KeyEvent.VK_4,
                          KeyEvent.VK_5, KeyEvent.VK_6, KeyEvent.VK_7, KeyEvent.VK_8,
                          KeyEvent.VK_9, KeyEvent.VK_0},
                0, 0);
 
-        // ── QWERTY 列（Row 1，偏移 10px）────────────────────
         addRow(new String[]{"Q","W","E","R","T","Y","U","I","O","P"},
                new int[]{KeyEvent.VK_Q, KeyEvent.VK_W, KeyEvent.VK_E, KeyEvent.VK_R,
                          KeyEvent.VK_T, KeyEvent.VK_Y, KeyEvent.VK_U, KeyEvent.VK_I,
                          KeyEvent.VK_O, KeyEvent.VK_P},
                10, 1);
 
-        // ── Home 列（Row 2，偏移 16px）──────────────────────
         addRow(new String[]{"A","S","D","F","G","H","J","K","L"},
                new int[]{KeyEvent.VK_A, KeyEvent.VK_S, KeyEvent.VK_D, KeyEvent.VK_F,
                          KeyEvent.VK_G, KeyEvent.VK_H, KeyEvent.VK_J, KeyEvent.VK_K,
                          KeyEvent.VK_L},
                16, 2);
 
-        // ── Bottom 列（Row 3，偏移 28px）────────────────────
         addRow(new String[]{"Z","X","C","V","B","N","M"},
                new int[]{KeyEvent.VK_Z, KeyEvent.VK_X, KeyEvent.VK_C, KeyEvent.VK_V,
                          KeyEvent.VK_B, KeyEvent.VK_N, KeyEvent.VK_M},
                28, 3);
 
-        // ── Space（寬鍵，偏移 60px，寬 204px）───────────────
         int spaceY = KB_Y + 4 * KP + 6;
         keyCells.add(new KeyCell("Space", KeyEvent.VK_SPACE,
                                  KB_X + 60, spaceY, 204, KS));
 
-        // ── 方向鍵（右側獨立區塊）───────────────────────────
-        int arX = KB_X + 10 * KP + 16; // 數字列最右鍵右邊再留 16px
-        int arY = KB_Y + 2 * KP;        // 從 Row 2 的 Y 開始
-        keyCells.add(new KeyCell("↑", KeyEvent.VK_UP,    arX + KP,       arY,       KS, KS));
-        keyCells.add(new KeyCell("←", KeyEvent.VK_LEFT,  arX,             arY + KP,  KS, KS));
-        keyCells.add(new KeyCell("↓", KeyEvent.VK_DOWN,  arX + KP,       arY + KP,  KS, KS));
-        keyCells.add(new KeyCell("→", KeyEvent.VK_RIGHT, arX + 2 * KP,   arY + KP,  KS, KS));
+        int arX = KB_X + 10 * KP + 16;
+        int arY = KB_Y + 2 * KP;
+        keyCells.add(new KeyCell("↑", KeyEvent.VK_UP,    arX + KP,     arY,      KS, KS));
+        keyCells.add(new KeyCell("←", KeyEvent.VK_LEFT,  arX,          arY + KP, KS, KS));
+        keyCells.add(new KeyCell("↓", KeyEvent.VK_DOWN,  arX + KP,     arY + KP, KS, KS));
+        keyCells.add(new KeyCell("→", KeyEvent.VK_RIGHT, arX + 2 * KP, arY + KP, KS, KS));
     }
 
-    /** 工具方法：批次加入一列按鍵 */
     private void addRow(String[] labels, int[] keyCodes, int xOffset, int row) {
         for (int i = 0; i < labels.length; i++) {
             keyCells.add(new KeyCell(
@@ -158,130 +137,151 @@ public class KeyBindingPanel {
     }
 
     // ─────────────────────────────────────────────────────────
-    // 初始化：動作 Chip 列表
+    // 動作 Chip 列表
     // ─────────────────────────────────────────────────────────
-
-    /**
-     * 建立左側動作面板中的所有 Chip 格子。
-     * 自動按照 ActionType 的宣告順序排列，
-     * 且按 Category 分組顯示。
-     */
     private void buildActionChips() {
         actionChips.clear();
-        int y = PAL_Y + 28; // 分類標題留 28px
-
+        int y = PAL_Y + 28;
         ActionType.Category lastCat = null;
         for (ActionType a : ActionType.values()) {
-            // 遇到新分類時多留一點間距
             if (a.category != lastCat) {
-                if (lastCat != null) y += 10; // 分類間隔
-                y += 20; // 分類標題高度
+                if (lastCat != null) y += 6;
+                y += 18;
                 lastCat = a.category;
             }
-            actionChips.add(new ActionChip(a,
-                new Rectangle(PAL_X, y, PAL_W, CHIP_H)));
+            actionChips.add(new ActionChip(a, new Rectangle(PAL_X, y, PAL_W, CHIP_H)));
             y += CHIP_H + CHIP_GAP;
         }
     }
 
     // ─────────────────────────────────────────────────────────
-    // 繪製
+    // 繪製主體
     // ─────────────────────────────────────────────────────────
-
     public void draw(Graphics2D g) {
-        // ── 遮罩（半透明黑） ──────────────────────────────────
-        g.setColor(new Color(0, 0, 0, 180));
+        // 半透明遮罩
+        g.setColor(new Color(0, 0, 0, 190));
         g.fillRect(0, 0, 800, 580);
 
-        // ── 面板主體 ──────────────────────────────────────────
-        g.setColor(new Color(18, 20, 40));
+        // 面板外框（深藍漸層）
+        GradientPaint panelGrad = new GradientPaint(
+            PX, PY,        new Color(22, 24, 52),
+            PX, PY + PH,   new Color(14, 16, 36)
+        );
+        g.setPaint(panelGrad);
         g.fillRoundRect(PX, PY, PW, PH, 14, 14);
-        g.setColor(new Color(80, 90, 160));
+
+        // 頂部彩色標題帶
+        GradientPaint headerGrad = new GradientPaint(
+            PX, PY,       new Color(40, 46, 110),
+            PX, PY + 46,  new Color(22, 24, 52)
+        );
+        g.setPaint(headerGrad);
+        g.fillRoundRect(PX, PY, PW, 46, 14, 14);
+        g.fillRect(PX, PY + 30, PW, 16); // 方角填滿下半
+
+        // 外框
+        g.setColor(new Color(70, 80, 160));
         g.setStroke(new BasicStroke(1.5f));
         g.drawRoundRect(PX, PY, PW, PH, 14, 14);
+        g.setStroke(new BasicStroke(1f));
 
-        // ── 標題列 ───────────────────────────────────────────
-        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 16));
-        g.setColor(new Color(200, 210, 255));
-        g.drawString("⌨  按鍵配置", PX + 14, PY + 26);
+        // 標題文字
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 15));
+        g.setColor(new Color(210, 220, 255));
+        g.drawString("按鍵配置", PX + 14, PY + 24);
 
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
-        g.setColor(new Color(130, 130, 170));
-        g.drawString("B 鍵關閉 | 拖曳動作到按鍵以綁定 | 拖離鍵盤以解除", PX + 14, PY + 42);
+        g.setColor(new Color(120, 125, 170));
+        g.drawString("拖曳動作 → 按鍵 綁定  |  拖離鍵盤 解除  |  B / ESC 關閉", PX + 14, PY + 40);
 
-        // ── Reset 按鈕 ────────────────────────────────────────
+        // Reset 按鈕
         drawResetButton(g);
 
-        // ── 分隔線 ───────────────────────────────────────────
-        g.setColor(new Color(60, 65, 120));
+        // 分隔線
+        g.setColor(new Color(50, 58, 115));
         g.setStroke(new BasicStroke(1f));
-        g.drawLine(PX + PAL_W + 20, PY + 48, PX + PAL_W + 20, PY + PH - 10);
+        g.drawLine(PX + PAL_W + 20, PY + 50, PX + PAL_W + 20, PY + PH - 10);
+        g.setStroke(new BasicStroke(1f));
 
-        // ── 左側：動作面板 ────────────────────────────────────
+        // 左側動作面板
         drawPalette(g);
 
-        // ── 右側：鍵盤 ───────────────────────────────────────
+        // 右側鍵盤
         drawKeyboard(g);
 
-        // ── 拖曳中的 Ghost ────────────────────────────────────
-        if (draggedAction != null) {
-            drawDragGhost(g);
-        }
+        // 拖曳 Ghost
+        if (draggedAction != null) drawDragGhost(g);
     }
 
     // ── 動作面板（左側）─────────────────────────────────────
-
     private void drawPalette(Graphics2D g) {
         g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-        g.setColor(new Color(160, 170, 210));
-        g.drawString("可用動作", PAL_X, PAL_Y + 16);
+        g.setColor(new Color(170, 180, 220));
+        g.drawString("可用動作", PAL_X, PAL_Y + 14);
 
         ActionType.Category lastCat = null;
         int chipIdx = 0;
         int y = PAL_Y + 28;
 
         for (ActionType a : ActionType.values()) {
-            // 分類標題
             if (a.category != lastCat) {
-                if (lastCat != null) y += 10;
-                g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
-                g.setColor(new Color(100, 110, 150));
-                g.drawString("── " + a.category.label + " ──", PAL_X, y + 14);
-                y += 20;
+                if (lastCat != null) y += 6;
+                // 分類標題帶
+                Color catCol = catColor(a.category);
+                g.setColor(new Color(catCol.getRed(), catCol.getGreen(), catCol.getBlue(), 38));
+                g.fillRoundRect(PAL_X, y, PAL_W, 16, 4, 4);
+                g.setColor(new Color(catCol.getRed(), catCol.getGreen(), catCol.getBlue(), 130));
+                g.setStroke(new BasicStroke(0.8f));
+                g.drawRoundRect(PAL_X, y, PAL_W, 16, 4, 4);
+                g.setStroke(new BasicStroke(1f));
+                g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 9));
+                g.setColor(catCol.brighter());
+                g.drawString(a.category.label, PAL_X + 6, y + 12);
+                y += 18;
                 lastCat = a.category;
             }
 
-            // Chip 本體
             ActionChip chip = actionChips.get(chipIdx++);
             boolean isDragging = (draggedAction == a);
 
-            // 底色（拖曳中的 chip 變暗）
-            Color bgColor = isDragging
-                ? new Color(a.color.getRed()/4, a.color.getGreen()/4, a.color.getBlue()/4, 120)
-                : new Color(a.color.getRed()/3, a.color.getGreen()/3, a.color.getBlue()/3);
-            g.setColor(bgColor);
-            g.fillRoundRect(chip.rect.x, chip.rect.y, chip.rect.width, chip.rect.height, 6, 6);
+            // Chip 背景（含左側色條）
+            Color ac = a.color;
+            g.setColor(isDragging
+                ? new Color(ac.getRed()/5, ac.getGreen()/5, ac.getBlue()/5, 100)
+                : new Color(ac.getRed()/4, ac.getGreen()/4, ac.getBlue()/4));
+            g.fillRoundRect(chip.rect.x, chip.rect.y, chip.rect.width, chip.rect.height, 4, 4);
+
+            // 左側色條
+            if (!isDragging) {
+                g.setColor(new Color(ac.getRed(), ac.getGreen(), ac.getBlue(), 180));
+                g.fillRoundRect(chip.rect.x, chip.rect.y, 3, chip.rect.height, 2, 2);
+            }
 
             // 邊框
-            g.setColor(isDragging ? a.color.darker() : a.color);
-            g.setStroke(new BasicStroke(1.2f));
-            g.drawRoundRect(chip.rect.x, chip.rect.y, chip.rect.width, chip.rect.height, 6, 6);
+            g.setColor(isDragging ? ac.darker().darker() : new Color(ac.getRed(), ac.getGreen(), ac.getBlue(), 160));
+            g.setStroke(new BasicStroke(0.8f));
+            g.drawRoundRect(chip.rect.x, chip.rect.y, chip.rect.width, chip.rect.height, 4, 4);
+            g.setStroke(new BasicStroke(1f));
 
             // 動作名稱
-            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-            g.setColor(isDragging ? new Color(150, 150, 150) : Color.WHITE);
-            g.drawString(a.displayName, chip.rect.x + 8, chip.rect.y + CHIP_H - 9);
+            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
+            g.setColor(isDragging ? new Color(120, 120, 120) : new Color(220, 225, 255));
+            g.drawString(a.displayName, chip.rect.x + 7, chip.rect.y + CHIP_H - 4);
 
-            // 目前綁定的按鍵標示（右側小字）
+            // 已綁定鍵標示（右側）
             Integer boundKey = manager.getKeyFor(a);
             if (boundKey != null) {
-                String keyLabel = "[" + KeyBindingManager.keyName(boundKey) + "]";
-                g.setFont(new Font("Arial", Font.BOLD, 10));
-                g.setColor(new Color(200, 200, 100));
+                String kl = KeyBindingManager.keyName(boundKey);
+                g.setFont(new Font("Arial", Font.BOLD, 9));
+                g.setColor(new Color(220, 195, 80));
                 FontMetrics fm = g.getFontMetrics();
-                g.drawString(keyLabel,
-                             chip.rect.x + chip.rect.width - fm.stringWidth(keyLabel) - 6,
-                             chip.rect.y + CHIP_H - 9);
+                int klX = chip.rect.x + chip.rect.width - fm.stringWidth(kl) - 6;
+                // 小底框
+                g.setColor(new Color(80, 70, 20, 140));
+                g.fillRoundRect(klX - 2, chip.rect.y + 2, fm.stringWidth(kl) + 4, CHIP_H - 4, 3, 3);
+                g.setFont(new Font("Arial", Font.BOLD, 9));
+                g.setColor(new Color(255, 220, 80));
+                g.drawString(kl, klX, chip.rect.y + CHIP_H - 4);
             }
 
             y += CHIP_H + CHIP_GAP;
@@ -289,20 +289,24 @@ public class KeyBindingPanel {
     }
 
     // ── 鍵盤（右側）─────────────────────────────────────────
-
     private void drawKeyboard(Graphics2D g) {
-        // 鍵盤區標題
-        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
-        g.setColor(new Color(160, 170, 210));
-        g.drawString("鍵盤配置（拖曳動作到按鍵）", KB_X, PAL_Y + 16);
+        // 鍵盤托盤（淡色背景）
+        int kbRight = KB_X + 10 * KP + 4 * KP + 20; // rough right edge
+        int kbBottom = KB_Y + 5 * KP + KS + 8;
+        g.setColor(new Color(20, 22, 48));
+        g.fillRoundRect(KB_X - 10, KB_Y - 10, kbRight - KB_X + 20, kbBottom - KB_Y + 14, 10, 10);
+        g.setColor(new Color(38, 44, 88));
+        g.setStroke(new BasicStroke(1f));
+        g.drawRoundRect(KB_X - 10, KB_Y - 10, kbRight - KB_X + 20, kbBottom - KB_Y + 14, 10, 10);
 
-        // 找滑鼠懸停的按鍵（拖曳中才需要）
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
+        g.setColor(new Color(150, 160, 210));
+        g.drawString("鍵盤配置（拖曳動作到按鍵進行綁定）", KB_X - 6, PAL_Y + 14);
+
         KeyCell hoveredCell = draggedAction != null ? findKeyAt(dragX, dragY) : null;
-
         for (KeyCell kc : keyCells) {
             ActionType boundAction = manager.getAction(kc.keyCode);
             boolean    isHovered   = (kc == hoveredCell);
-
             drawKeyCell(g, kc, boundAction, isHovered);
         }
     }
@@ -310,109 +314,148 @@ public class KeyBindingPanel {
     private void drawKeyCell(Graphics2D g, KeyCell kc, ActionType bound, boolean hovered) {
         Rectangle r = kc.rect;
 
-        // ── 按鍵底色 ─────────────────────────────────────────
+        // 是否為快捷欄按鍵（數字1-5）
+        boolean isHotbarKey = (kc.keyCode >= KeyEvent.VK_1 && kc.keyCode <= KeyEvent.VK_5);
+
+        // ── 按鍵底色（3D 底層陰影）────────────────────────────
+        g.setColor(new Color(8, 10, 22));
+        g.fillRoundRect(r.x + 2, r.y + 3, r.width, r.height, 5, 5);
+
+        // ── 按鍵主體底色 ─────────────────────────────────────
         Color bg;
         if (hovered && draggedAction != null) {
-            // 懸停且正在拖曳 → 亮色提示可放置
-            bg = new Color(60, 80, 50);
+            bg = new Color(40, 75, 35);
         } else if (bound != null) {
-            // 有綁定 → 用動作的代表色淡化
-            bg = new Color(
-                bound.color.getRed()  / 5,
-                bound.color.getGreen()/ 5,
-                bound.color.getBlue() / 5
-            );
+            Color c = bound.color;
+            bg = new Color(c.getRed()/6, c.getGreen()/6, c.getBlue()/6 + 12);
+        } else if (isHotbarKey) {
+            bg = new Color(38, 30, 12);
         } else {
-            // 空白鍵
-            bg = new Color(30, 32, 58);
+            bg = new Color(32, 34, 62);
         }
         g.setColor(bg);
         g.fillRoundRect(r.x, r.y, r.width, r.height, 5, 5);
 
-        // ── 按鍵邊框 ─────────────────────────────────────────
+        // ── 邊框 ─────────────────────────────────────────────
         Color border;
         if (hovered && draggedAction != null) {
-            border = new Color(120, 220, 80);
+            border = new Color(100, 210, 70);
         } else if (bound != null) {
-            border = bound.color.darker();
+            border = new Color(bound.color.getRed()/2,
+                               bound.color.getGreen()/2,
+                               bound.color.getBlue()/2 + 20);
+        } else if (isHotbarKey) {
+            border = new Color(90, 70, 25);
         } else {
-            border = new Color(55, 60, 100);
+            border = new Color(48, 54, 100);
         }
         g.setColor(border);
-        g.setStroke(new BasicStroke(hovered ? 2f : 1.2f));
+        g.setStroke(new BasicStroke(hovered ? 1.8f : 1.0f));
         g.drawRoundRect(r.x, r.y, r.width, r.height, 5, 5);
         g.setStroke(new BasicStroke(1f));
 
-        // ── 按鍵標籤（鍵名，右上角小字） ─────────────────────
-        g.setFont(new Font("Arial", Font.BOLD, 9));
-        g.setColor(new Color(140, 140, 180));
-        g.drawString(kc.label, r.x + 3, r.y + 11);
+        // ── 3D 頂邊高光 ──────────────────────────────────────
+        Color hiCol = hovered
+            ? new Color(160, 255, 120, 100)
+            : (bound != null
+                ? new Color(bound.color.getRed(), bound.color.getGreen(), bound.color.getBlue(), 60)
+                : (isHotbarKey ? new Color(180, 140, 40, 70) : new Color(80, 90, 160, 50)));
+        g.setColor(hiCol);
+        g.drawLine(r.x + 2, r.y + 1, r.x + r.width - 3, r.y + 1);
 
-        // ── 綁定動作名稱（置中，白字） ───────────────────────
+        // ── 鍵名（左上角小字） ───────────────────────────────
+        g.setFont(new Font("Arial", Font.BOLD, 8));
+        g.setColor(bound != null
+            ? new Color(bound.color.getRed(), bound.color.getGreen(), bound.color.getBlue(), 200)
+            : (isHotbarKey ? new Color(180, 140, 50) : new Color(110, 115, 175)));
+        g.drawString(kc.label, r.x + 3, r.y + 10);
+
+        // ── 綁定動作名稱（置中）─────────────────────────────
         if (bound != null) {
-            // 顏色條（按鍵底部）
-            g.setColor(new Color(bound.color.getRed(), bound.color.getGreen(),
-                                  bound.color.getBlue(), 140));
-            g.fillRoundRect(r.x + 2, r.y + r.height - 6, r.width - 4, 5, 3, 3);
+            Color bc = bound.color;
 
-            // 動作縮寫（最多 4 個字，否則截斷）
-            String shortName = abbreviate(bound.displayName, r.width - 6);
-            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 9));
-            g.setColor(Color.WHITE);
+            // 底部稀有色條
+            g.setColor(new Color(bc.getRed(), bc.getGreen(), bc.getBlue(), 130));
+            g.fillRoundRect(r.x + 2, r.y + r.height - 5, r.width - 4, 4, 2, 2);
+
+            String shortName = abbreviate(bound.displayName, r.width - 6, g);
+            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 8));
+            g.setColor(new Color(220, 225, 255));
             FontMetrics fm = g.getFontMetrics();
             g.drawString(shortName,
                          r.x + (r.width  - fm.stringWidth(shortName)) / 2,
-                         r.y + r.height - 9);
+                         r.y + r.height - 8);
+        } else if (isHotbarKey) {
+            // 空的快捷欄鍵：顯示「快」字
+            g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 8));
+            g.setColor(new Color(120, 95, 35));
+            FontMetrics fm = g.getFontMetrics();
+            String tag = "快";
+            g.drawString(tag, r.x + (r.width - fm.stringWidth(tag)) / 2, r.y + r.height - 8);
         }
 
-        // ── 懸停特效（綠色光暈提示） ─────────────────────────
+        // ── 懸停特效 ─────────────────────────────────────────
         if (hovered && draggedAction != null) {
-            g.setColor(new Color(100, 255, 60, 60));
+            g.setColor(new Color(100, 255, 60, 45));
             g.fillRoundRect(r.x + 1, r.y + 1, r.width - 2, r.height - 2, 4, 4);
         }
     }
 
-    // ── 拖曳中的 Ghost ────────────────────────────────────────
-
+    // ── Ghost（拖曳中）───────────────────────────────────────
     private void drawDragGhost(Graphics2D g) {
-        int gw = 140, gh = 28;
+        int gw = 140, gh = 26;
         int gx = dragX - gw / 2;
         int gy = dragY - gh / 2;
 
-        // 半透明背景
         Color c = draggedAction.color;
-        g.setColor(new Color(c.getRed() / 3, c.getGreen() / 3, c.getBlue() / 3, 200));
+        g.setColor(new Color(c.getRed()/3, c.getGreen()/3, c.getBlue()/3, 210));
         g.fillRoundRect(gx, gy, gw, gh, 8, 8);
 
-        // 邊框（動作顏色）
         g.setColor(c);
-        g.setStroke(new BasicStroke(2f));
+        g.setStroke(new BasicStroke(1.8f));
         g.drawRoundRect(gx, gy, gw, gh, 8, 8);
         g.setStroke(new BasicStroke(1f));
 
-        // 動作名稱
+        // 頂邊高光
+        g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 80));
+        g.drawLine(gx + 3, gy + 1, gx + gw - 4, gy + 1);
+
         g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
         g.setColor(Color.WHITE);
         FontMetrics fm = g.getFontMetrics();
         g.drawString(draggedAction.displayName,
                      gx + (gw - fm.stringWidth(draggedAction.displayName)) / 2,
-                     gy + gh - 8);
+                     gy + gh - 7);
     }
 
     // ── Reset 按鈕 ────────────────────────────────────────────
-
     private void drawResetButton(Graphics2D g) {
-        g.setColor(new Color(70, 50, 20));
+        // 陰影
+        g.setColor(new Color(0, 0, 0, 80));
+        g.fillRoundRect(resetBtn.x + 2, resetBtn.y + 2, resetBtn.width, resetBtn.height, 6, 6);
+
+        GradientPaint btnGrad = new GradientPaint(
+            resetBtn.x, resetBtn.y,              new Color(85, 60, 20),
+            resetBtn.x, resetBtn.y + resetBtn.height, new Color(55, 38, 12)
+        );
+        g.setPaint(btnGrad);
         g.fillRoundRect(resetBtn.x, resetBtn.y, resetBtn.width, resetBtn.height, 6, 6);
-        g.setColor(new Color(180, 130, 50));
+
+        g.setColor(new Color(190, 140, 55));
         g.setStroke(new BasicStroke(1.2f));
         g.drawRoundRect(resetBtn.x, resetBtn.y, resetBtn.width, resetBtn.height, 6, 6);
+        g.setStroke(new BasicStroke(1f));
+
+        // 頂邊高光
+        g.setColor(new Color(255, 200, 80, 60));
+        g.drawLine(resetBtn.x + 3, resetBtn.y + 1, resetBtn.x + resetBtn.width - 4, resetBtn.y + 1);
+
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-        g.setColor(new Color(230, 190, 100));
+        g.setColor(new Color(240, 200, 100));
         FontMetrics fm = g.getFontMetrics();
         String label = "還原預設";
         g.drawString(label,
-                     resetBtn.x + (resetBtn.width - fm.stringWidth(label)) / 2,
+                     resetBtn.x + (resetBtn.width  - fm.stringWidth(label)) / 2,
                      resetBtn.y + 16);
     }
 
@@ -420,15 +463,11 @@ public class KeyBindingPanel {
     // 滑鼠事件（由 GamePanel 呼叫）
     // ─────────────────────────────────────────────────────────
 
-    /** 滑鼠按下：開始拖曳 */
     public void mousePressed(int x, int y) {
-        // 點擊 Reset 按鈕
         if (resetBtn.contains(x, y)) {
             manager.resetToDefault();
             return;
         }
-
-        // 從鍵盤上拖曳已綁定的動作
         KeyCell kc = findKeyAt(x, y);
         if (kc != null) {
             ActionType bound = manager.getAction(kc.keyCode);
@@ -439,42 +478,30 @@ public class KeyBindingPanel {
                 return;
             }
         }
-
-        // 從動作面板拖曳
         ActionChip chip = findChipAt(x, y);
         if (chip != null) {
             draggedAction     = chip.type;
-            dragSourceKeyCode = null; // 從 palette 開始
+            dragSourceKeyCode = null;
             dragX = x; dragY = y;
         }
     }
 
-    /** 滑鼠拖曳中：更新 Ghost 位置 */
     public void mouseDragged(int x, int y) {
         if (draggedAction == null) return;
         dragX = x; dragY = y;
     }
 
-    /** 滑鼠放開：完成綁定或解除 */
     public void mouseReleased(int x, int y) {
         if (draggedAction == null) return;
-
         KeyCell target = findKeyAt(x, y);
-
         if (target != null) {
-            // 放到按鍵上 → 綁定
             manager.bind(target.keyCode, draggedAction);
         } else {
-            // 放到鍵盤外 → 如果是從按鍵上拖來的，解除原來的綁定
-            if (dragSourceKeyCode != null) {
-                // 確認動作還在原鍵上（沒被 bind() 移走）
-                if (manager.getAction(dragSourceKeyCode) == draggedAction) {
-                    manager.unbind(dragSourceKeyCode);
-                }
+            if (dragSourceKeyCode != null &&
+                    manager.getAction(dragSourceKeyCode) == draggedAction) {
+                manager.unbind(dragSourceKeyCode);
             }
         }
-
-        // 清除拖曳狀態
         draggedAction     = null;
         dragSourceKeyCode = null;
     }
@@ -483,7 +510,6 @@ public class KeyBindingPanel {
     // 工具方法
     // ─────────────────────────────────────────────────────────
 
-    /** 找到包含 (x,y) 的按鍵格子（沒找到回傳 null） */
     private KeyCell findKeyAt(int x, int y) {
         for (KeyCell kc : keyCells) {
             if (kc.rect.contains(x, y)) return kc;
@@ -491,7 +517,6 @@ public class KeyBindingPanel {
         return null;
     }
 
-    /** 找到包含 (x,y) 的動作 Chip（沒找到回傳 null） */
     private ActionChip findChipAt(int x, int y) {
         for (ActionChip chip : actionChips) {
             if (chip.rect.contains(x, y)) return chip;
@@ -499,15 +524,24 @@ public class KeyBindingPanel {
         return null;
     }
 
-    /**
-     * 截斷過長的字串，加上「…」。
-     * 根據可用寬度決定最多顯示幾個字。
-     */
-    private String abbreviate(String text, int availableWidth) {
-        // 每個中文字約 9px（9pt 字體），英文字母約 6px
-        // 用字元數粗估：顯示不超過 (availableWidth / 8) 個字
-        int maxChars = Math.max(2, availableWidth / 8);
-        if (text.length() <= maxChars) return text;
-        return text.substring(0, maxChars - 1) + "…";
+    /** 依可用寬度截斷字串，超出加省略號（使用 FontMetrics 精確計算）*/
+    private String abbreviate(String text, int availableWidth, Graphics2D g) {
+        FontMetrics fm = g.getFontMetrics();
+        if (fm.stringWidth(text) <= availableWidth) return text;
+        String ellipsis = "..";
+        for (int i = text.length() - 1; i > 0; i--) {
+            String candidate = text.substring(0, i) + ellipsis;
+            if (fm.stringWidth(candidate) <= availableWidth) return candidate;
+        }
+        return ellipsis;
+    }
+
+    /** 各分類的代表色 */
+    private static Color catColor(ActionType.Category cat) {
+        return switch (cat) {
+            case GAME   -> new Color(100, 160, 255);
+            case UI     -> new Color(80,  200, 120);
+            case HOTBAR -> new Color(220, 160, 40);
+        };
     }
 }
