@@ -1,4 +1,4 @@
-package maplestory.item;
+﻿package maplestory.item;
 
 /**
  * 消耗品（回血藥 / 回魔藥 / 傳送卷軸）。
@@ -14,6 +14,7 @@ public class Consumable {
     private final int        hpRestore;
     private final int        mpRestore;
     private final String     teleportMapId; // null = 非卷軸
+    private int              quantity = 1;  // 這疊的數量，最多 200
 
     private Consumable(String name, String desc, ItemRarity rarity,
                        int hp, int mp, String teleportMapId) {
@@ -69,6 +70,30 @@ public class Consumable {
         return new Consumable("回冒險平原卷軸", "傳送回冒險平原", ItemRarity.RARE, 0, 0, "battle");
     }
 
+
+    /**
+     * 回家卷軸：自動偵測所在區域，傳送回對應村莊中央。
+     * novice1/2/3 → 新手村，battle → 前哨站，arctic → 冰原驛站。
+     * teleportMapId = "HOME"，由 GamePanel 動態解析目標地圖。
+     */
+    public static Consumable returnHome() {
+        return new Consumable("回家卷軸", "傳送回所在區域的村莊中央", ItemRarity.UNCOMMON, 0, 0, "HOME");
+    }
+
+    /** 新手村村莊卷軸：傳送至新手村地圖正中央 */
+    public static Consumable villageScrollVillage() {
+        return new Consumable("新手村村莊卷軸", "傳送至新手村正中央", ItemRarity.RARE, 0, 0, "VCENTER:village");
+    }
+
+    /** 前哨站村莊卷軸：傳送至前線前哨站地圖正中央 */
+    public static Consumable villageScrollFrontier() {
+        return new Consumable("前哨站村莊卷軸", "傳送至前線前哨站正中央", ItemRarity.RARE, 0, 0, "VCENTER:frontier");
+    }
+
+    /** 冰原驛站村莊卷軸：傳送至冰原驛站地圖正中央 */
+    public static Consumable villageScrollIcePost() {
+        return new Consumable("冰原驛站村莊卷軸", "傳送至冰原驛站正中央", ItemRarity.RARE, 0, 0, "VCENTER:icepost");
+    }
     // ── 使用 ─────────────────────────────────────────────────
 
     /**
@@ -92,7 +117,7 @@ public class Consumable {
         return sb.toString().trim();
     }
 
-    // ── Getter ───────────────────────────────────────────────
+    // ── Getter / Setter（數量管理）───────────────────────────
     public String     getName()          { return name; }
     public String     getDescription()   { return description; }
     public ItemRarity getRarity()        { return rarity; }
@@ -100,4 +125,8 @@ public class Consumable {
     public int        getMpRestore()     { return mpRestore; }
     public String     getTeleportMapId() { return teleportMapId; }
     public boolean    isTeleportScroll() { return teleportMapId != null; }
+
+    public int  getQuantity()          { return quantity; }
+    public void addQuantity(int delta) { this.quantity += delta; }
+    public void decrement()            { if (quantity > 0) quantity--; }
 }

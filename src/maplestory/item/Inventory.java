@@ -12,6 +12,7 @@ import java.util.List;
 public class Inventory {
 
     public static final int MAX_PER_TAB = 40;
+    public static final int MAX_STACK   = 200; // 每格最多堆疊數量
 
     private final List<Consumable> consumables = new ArrayList<>();
     private final List<Equipment>  equipments  = new ArrayList<>();
@@ -19,8 +20,20 @@ public class Inventory {
 
     // ── 加入 ─────────────────────────────────────────────────
 
-    /** 加入消耗品。滿了回傳 false。 */
+    /**
+     * 加入消耗品（自動堆疊）。
+     * 同名稱的格子未滿 200 時先疊入；滿了或找不到才開新格。
+     * 背包格子已達上限時回傳 false。
+     */
     public boolean addConsumable(Consumable c) {
+        // 找同名且未滿的格子，疊入 1 個
+        for (Consumable existing : consumables) {
+            if (existing.getName().equals(c.getName()) && existing.getQuantity() < MAX_STACK) {
+                existing.addQuantity(1);
+                return true;
+            }
+        }
+        // 找不到可疊入的格子，開新格
         if (consumables.size() >= MAX_PER_TAB) return false;
         consumables.add(c);
         return true;
@@ -36,12 +49,16 @@ public class Inventory {
     // ── 移除 ─────────────────────────────────────────────────
 
     /**
-     * 使用（移除）指定索引的消耗品。
-     * @return 被移除的消耗品，索引無效回傳 null
+     * 使用指定索引的消耗品（數量 -1）。
+     * 數量歸零時才從列表移除。
+     * @return 被使用的消耗品；索引無效回傳 null
      */
     public Consumable useConsumable(int index) {
         if (index < 0 || index >= consumables.size()) return null;
-        return consumables.remove(index);
+        Consumable c = consumables.get(index);
+        c.decrement();
+        if (c.getQuantity() <= 0) consumables.remove(index);
+        return c;
     }
 
     /** 移除（丟棄）裝備 */
@@ -67,5 +84,14 @@ public class Inventory {
             if (consumables.get(i).getName().equals(name)) return i;
         }
         return -1;
+    }
+
+    /** 計算某名稱消耗品的總數量（跨所有格子加總） */
+    public int countConsumable(String name) {
+        int total = 0;
+        for (Consumable c : consumables) {
+            if (c.getName().equals(name)) total += c.getQuantity();
+        }
+        return total;
     }
 }

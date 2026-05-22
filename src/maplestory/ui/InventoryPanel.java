@@ -165,6 +165,19 @@ public class InventoryPanel {
         // 稀有度點
         g.setColor(col);
         g.fillOval(cx + CELL_SIZE - 12, cy + 4, 7, 7);
+
+        // 堆疊數量 badge（右下角，超過 1 才顯示）
+        if (item instanceof Consumable c && c.getQuantity() > 1) {
+            String qStr = String.valueOf(c.getQuantity());
+            g.setFont(new Font("Arial", Font.BOLD, 9));
+            FontMetrics fmQ = g.getFontMetrics();
+            int qx = cx + CELL_SIZE - fmQ.stringWidth(qStr) - 3;
+            int qy = cy + CELL_SIZE - 4;
+            g.setColor(new Color(0, 0, 0, 160));
+            g.drawString(qStr, qx + 1, qy + 1);
+            g.setColor(Color.WHITE);
+            g.drawString(qStr, qx, qy);
+        }
     }
 
     /** 簡單文字換行 */

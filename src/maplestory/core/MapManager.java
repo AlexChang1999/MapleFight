@@ -1,4 +1,4 @@
-package maplestory.core;
+﻿package maplestory.core;
 
 import maplestory.audio.SFX;
 import maplestory.audio.SoundManager;
@@ -97,6 +97,22 @@ public class MapManager {
         }
     }
 
+
+    /** 根據當前地圖 ID 回傳對應的村莊 mapId（回家卷軸使用） */
+    public String getHomeMapId(String currentMapId) {
+        return switch (currentMapId) {
+            case "novice1", "novice2", "novice3" -> "village";
+            case "battle"                        -> "frontier";
+            case "arctic"                        -> "icepost";
+            default                              -> currentMapId; // 已在村莊
+        };
+    }
+
+    /** 取得指定地圖的寬度（村莊卷軸計算中央出生點用） */
+    public int getMapWidth(String mapId) {
+        BaseMap m = maps.get(mapId);
+        return m != null ? m.getMapWidth() : 800;
+    }
     public BaseMap  getCurrentMap()          { return currentMap; }
     public boolean  isOnMap(String mapId)    { return mapId.equals(currentMap.getMapId()); }
     public boolean  justSwitched()           { return justSwitched; }

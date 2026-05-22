@@ -2,6 +2,7 @@ package maplestory.ui;
 
 import maplestory.entity.Player;
 import maplestory.item.Consumable;
+import maplestory.item.Inventory;
 
 import java.awt.*;
 
@@ -58,61 +59,98 @@ public class Hotbar {
     /**
      * 繪製於 HUD 中央，y = hudY + 48（26px 高）。
      * @param keyLabels 每格目前綁定的按鍵名稱（長度 5），傳入 null 則顯示 1-5
+     * @param inv       玩家背包，用於顯示總數量；傳 null 則不顯示數量
      */
-    public void draw(Graphics2D g, int hudY, String[] keyLabels) {
+    public void draw(Graphics2D g, int hudY, String[] keyLabels, Inventory inv) {
         int totalW = SLOTS * SLOT_SIZE + (SLOTS - 1) * GAP;
         int startX = (800 - totalW) / 2;
         int startY = hudY + 48;
 
-        // 標題小字
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 7));
-        g.setColor(new Color(100, 110, 160));
+        // 標題小字（帶陰影）
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 7));
+        g.setColor(new Color(0, 0, 0, 120));
+        g.drawString("快捷欄", startX + 1, startY - 1);
+        g.setColor(new Color(140, 150, 210));
         g.drawString("快捷欄", startX, startY - 2);
 
         for (int i = 0; i < SLOTS; i++) {
             int sx = startX + i * (SLOT_SIZE + GAP);
             int sy = startY;
 
-            // ── 格子背景（有物品時帶稀有度底色）───────────────
+            // ── 外框陰影 ───────────────────────────────────────
+            g.setColor(new Color(0, 0, 0, 100));
+            g.fillRoundRect(sx + 1, sy + 1, SLOT_SIZE, SLOT_SIZE, 6, 6);
+
+            // ── 格子背景漸層 ───────────────────────────────────
+            GradientPaint slotGrad;
             if (slots[i] != null) {
                 Color col = slots[i].getRarity().color;
-                g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 55));
-                g.fillRect(sx, sy, SLOT_SIZE, SLOT_SIZE);
+                slotGrad = new GradientPaint(
+                    sx, sy,             new Color(col.getRed() / 5, col.getGreen() / 5, col.getBlue() / 5, 210),
+                    sx, sy + SLOT_SIZE, new Color(col.getRed() / 8, col.getGreen() / 8, col.getBlue() / 8, 210)
+                );
             } else {
-                g.setColor(new Color(22, 28, 68));
-                g.fillRect(sx, sy, SLOT_SIZE, SLOT_SIZE);
+                slotGrad = new GradientPaint(
+                    sx, sy,             new Color(24, 30, 68),
+                    sx, sy + SLOT_SIZE, new Color(14, 18, 46)
+                );
             }
+            g.setPaint(slotGrad);
+            g.fillRoundRect(sx, sy, SLOT_SIZE, SLOT_SIZE, 6, 6);
+            g.setPaint(null);
 
-            // ── 格子邊框 ───────────────────────────────────────
-            g.setColor(slots[i] != null ? new Color(200, 155, 45) : new Color(45, 55, 120));
-            g.drawRect(sx, sy, SLOT_SIZE - 1, SLOT_SIZE - 1);
-            // 頂邊高光（3D 感）
-            g.setColor(slots[i] != null ? new Color(255, 220, 100, 80) : new Color(80, 90, 160, 60));
-            g.drawLine(sx + 1, sy + 1, sx + SLOT_SIZE - 2, sy + 1);
+            // ── 頂部高光 ───────────────────────────────────────
+            g.setColor(new Color(255, 255, 255, 22));
+            g.fillRoundRect(sx + 1, sy + 1, SLOT_SIZE - 2, SLOT_SIZE / 2, 4, 4);
 
             if (slots[i] != null) {
                 Color col = slots[i].getRarity().color;
-                // 名稱縮寫
+                // 名稱縮寫（帶陰影）
                 g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 8));
-                g.setColor(col.brighter());
                 String abbr = slots[i].getName().length() > 2
                     ? slots[i].getName().substring(0, 2) : slots[i].getName();
                 FontMetrics fm = g.getFontMetrics();
-                g.drawString(abbr, sx + (SLOT_SIZE - fm.stringWidth(abbr)) / 2, sy + 14);
+                int ax = sx + (SLOT_SIZE - fm.stringWidth(abbr)) / 2;
+                int ay = sy + 14;
+                g.setColor(new Color(0, 0, 0, 180));
+                g.drawString(abbr, ax + 1, ay + 1);
+                g.setColor(col.brighter());
+                g.drawString(abbr, ax, ay);
                 // 稀有度底條
-                g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 120));
-                g.fillRect(sx + 1, sy + SLOT_SIZE - 4, SLOT_SIZE - 2, 3);
+                g.setColor(new Color(col.getRed(), col.getGreen(), col.getBlue(), 180));
+                g.fillRoundRect(sx + 2, sy + SLOT_SIZE - 4, SLOT_SIZE - 4, 3, 2, 2);
+
+                // ── 總數量（左下角，白色小字）──────────────────
+                if (inv != null) {
+                    int total = inv.countConsumable(slots[i].getName());
+                    if (total > 0) {
+                        String countStr = total >= 1000 ? (total / 1000) + "k" : String.valueOf(total);
+                        g.setFont(new Font("Arial", Font.BOLD, 7));
+                        g.setColor(new Color(0, 0, 0, 160));
+                        g.drawString(countStr, sx + 2, sy + SLOT_SIZE - 2 + 1);
+                        g.setColor(Color.WHITE);
+                        g.drawString(countStr, sx + 2, sy + SLOT_SIZE - 2);
+                    }
+                }
             }
 
-            // ── 按鍵標籤（右下角，顯示綁定鍵名）─────────────
+            // ── 格子邊框（有物品金色，空格深藍）──────────────
+            g.setStroke(new java.awt.BasicStroke(1.2f));
+            g.setColor(slots[i] != null ? new Color(180, 140, 40) : new Color(48, 58, 128));
+            g.drawRoundRect(sx, sy, SLOT_SIZE, SLOT_SIZE, 6, 6);
+            g.setStroke(new java.awt.BasicStroke(1f));
+
+            // ── 按鍵標籤（右下角，帶陰影）────────────────────
             String keyLabel = (keyLabels != null && i < keyLabels.length)
                 ? keyLabels[i] : String.valueOf(i + 1);
             g.setFont(new Font("Arial", Font.BOLD, 7));
-            g.setColor(slots[i] != null ? new Color(220, 180, 60) : new Color(110, 115, 175));
             FontMetrics fm2 = g.getFontMetrics();
-            g.drawString(keyLabel,
-                sx + SLOT_SIZE - fm2.stringWidth(keyLabel) - 2,
-                sy + SLOT_SIZE - 2);
+            int kx = sx + SLOT_SIZE - fm2.stringWidth(keyLabel) - 2;
+            int ky = sy + SLOT_SIZE - 2;
+            g.setColor(new Color(0, 0, 0, 150));
+            g.drawString(keyLabel, kx + 1, ky + 1);
+            g.setColor(slots[i] != null ? new Color(220, 180, 60) : new Color(115, 120, 185));
+            g.drawString(keyLabel, kx, ky);
         }
     }
 }

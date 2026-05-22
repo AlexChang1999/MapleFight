@@ -808,89 +808,121 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     /**
-     * 繪製底部 HUD（重新設計，三排無重疊）
+     * 繪製底部 HUD（美化版）
      *
-     * 左區(0-202): HP/MP 條
-     * 中左(205-400): Lv/職業 + 地圖 + 金幣
-     * 中右(405-510): 技能槽（Q/W）
-     * 右區(514-800): 四個快捷按鈕（每個 71px，3px 間距）
+     * 左區(0-203): HP/MP 條
+     * 中左(210-503): Lv/職業 + 地圖 + 金幣
+     * 中右(408-480): 技能槽（最多 2 個）
+     * 中央(334-466): Hotbar 快捷欄
+     * 右區(507-800): 四個功能按鈕 + 操作說明
      * 底部：EXP 條
      */
     private void drawHUD(Graphics2D g) {
         int hudY = GAME_HEIGHT; // 500
 
-        // ── HUD 底板 ─────────────────────────────────────────
-        g.setColor(new Color(15, 15, 35));
+        // ── HUD 底板：深色漸層 ────────────────────────────────
+        GradientPaint hudBg = new GradientPaint(
+            0, hudY,              new Color(16, 20, 46),
+            0, hudY + HUD_HEIGHT, new Color(7, 9, 24)
+        );
+        g.setPaint(hudBg);
         g.fillRect(0, hudY, SCREEN_WIDTH, HUD_HEIGHT);
-        g.setColor(new Color(60, 60, 120));
-        g.drawLine(0, hudY, SCREEN_WIDTH, hudY);
+        g.setPaint(null);
 
-        // ── 左區：HP / MP 條（y+6 / y+28，高 16）───────────
-        drawBar(g, 8, hudY + 6, "HP",
+        // 頂部金色邊線（雙層：深金 + 亮金高光）
+        g.setColor(new Color(150, 112, 25));
+        g.fillRect(0, hudY, SCREEN_WIDTH, 2);
+        g.setColor(new Color(240, 200, 80, 85));
+        g.fillRect(0, hudY + 2, SCREEN_WIDTH, 1);
+
+        // 區域分隔線（半透明）
+        g.setColor(new Color(60, 65, 130, 100));
+        g.fillRect(224, hudY + 6, 1, HUD_HEIGHT - 14);
+        g.fillRect(503, hudY + 6, 1, HUD_HEIGHT - 14);
+
+        // ── 左區：HP / MP 條 ──────────────────────────────────
+        drawBar(g, 6, hudY + 6, "HP",
                 player.getHp(), player.getMaxHp(),
-                new Color(160, 25, 25), new Color(210, 55, 55));
-        drawBar(g, 8, hudY + 28, "MP",
+                new Color(120, 12, 12), new Color(220, 55, 55));
+        drawBar(g, 6, hudY + 30, "MP",
                 player.getMp(), player.getMaxMp(),
-                new Color(15, 35, 130), new Color(50, 100, 210));
+                new Color(10, 22, 140), new Color(48, 105, 230));
 
-        // ── 中左區：Lv/職業、地圖名、金幣、互動提示 ────────
-        int cx = 207;
-        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
-        g.setColor(Color.YELLOW);
-        g.drawString("Lv." + player.getLevel() + " " + player.getJobName(), cx, hudY + 18);
+        // ── 中左區：角色資訊（起點在血條右緣 220 之後）─────────
+        int cx = 226;
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 13));
+        drawHudText(g, "Lv." + player.getLevel() + " " + player.getJobName(),
+                    cx, hudY + 20, new Color(255, 235, 70));
 
         String mapLabel = mapManager.getCurrentMap().getMapName();
         String interactHint = "";
         if (nearDialogueNpc != null)
-            interactHint = " [" + getBoundKeyName(ActionType.UI_INTERACT) + "]對話";
+            interactHint = "  [" + getBoundKeyName(ActionType.UI_INTERACT) + "]對話";
         else if (nearShopNpc != null)
-            interactHint = " [" + getBoundKeyName(ActionType.UI_INTERACT) + "]購物";
+            interactHint = "  [" + getBoundKeyName(ActionType.UI_INTERACT) + "]購物";
 
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
-        g.setColor(new Color(150, 155, 200));
-        g.drawString(mapLabel + interactHint, cx, hudY + 34);
+        drawHudText(g, "◆ " + mapLabel + interactHint, cx, hudY + 36, new Color(130, 155, 220));
 
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 11));
-        g.setColor(new Color(255, 210, 0));
-        g.drawString("G " + player.getGold(), cx, hudY + 52);
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+        drawHudText(g, "✦ " + player.getGold() + " G", cx, hudY + 54, new Color(255, 208, 48));
 
-        // 存檔提示（疊加在中央）
+        // 存檔提示
         if (saveNoticeTimer > 0) {
             float alpha = (float) Math.min(1.0, saveNoticeTimer);
-            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
             g.setColor(new Color(80, 240, 110, (int)(alpha * 230)));
-            g.drawString("✔ 存檔成功 (Slot " + saveSlot + ")", cx, hudY + 67);
+            g.drawString("✔ 存檔成功 (Slot " + saveSlot + ")", cx, hudY + 68);
         }
 
-        // ── 中右區：技能槽（Q/W）─────────────────────────
+        // ── 中右區：技能槽 ────────────────────────────────────
         if (player.getJob() != null) drawSkillSlots(g, hudY);
 
-        // ── 快捷欄（HUD 中央，y+48）──────────────────────
-        hotbar.draw(g, hudY, getHotbarKeyLabels());
+        // ── 快捷欄 ────────────────────────────────────────────
+        hotbar.draw(g, hudY, getHotbarKeyLabels(), player.getInventory());
 
-        // ── 右區：四個快捷按鈕（71px×22px，間距 3px）──────
-        // 共 4×71 + 3×3 = 284+9 = 293px，起點 x = 800-293 = 507
-        int btnX = 507, btnY = hudY + 6, btnW = 71, btnH = 22;
+        // ── 右區：功能按鈕（4個，每個 70px，間距 3px）────────
+        int btnX = 507, btnY = hudY + 5, btnW = 70, btnH = 24;
         drawHudButton(g, "技能[" + getBoundKeyName(ActionType.UI_SKILL)     + "]", btnX,          btnY, btnW, btnH);
-        drawHudButton(g, "背包[" + getBoundKeyName(ActionType.UI_INVENTORY) + "]", btnX + 74,     btnY, btnW, btnH);
-        drawHudButton(g, "裝備[" + getBoundKeyName(ActionType.UI_EQUIP)     + "]", btnX + 74 * 2, btnY, btnW, btnH);
-        drawHudButton(g, "狀態[" + getBoundKeyName(ActionType.UI_STATUS)    + "]", btnX + 74 * 3, btnY, btnW, btnH);
+        drawHudButton(g, "背包[" + getBoundKeyName(ActionType.UI_INVENTORY) + "]", btnX + 73,     btnY, btnW, btnH);
+        drawHudButton(g, "裝備[" + getBoundKeyName(ActionType.UI_EQUIP)     + "]", btnX + 73 * 2, btnY, btnW, btnH);
+        drawHudButton(g, "狀態[" + getBoundKeyName(ActionType.UI_STATUS)    + "]", btnX + 73 * 3, btnY, btnW, btnH);
 
-        // 操作說明（右下角，9pt 小字）
+        // 操作說明
         g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 9));
-        g.setColor(new Color(110, 110, 150));
+        g.setColor(new Color(90, 95, 150));
         String muteLabel = SoundManager.get().isMuted() ? "[靜音]M" : "[音效]M";
         g.drawString("移:AD 跳:W 攻:Z  按鍵[" + getBoundKeyName(ActionType.UI_KEYBIND) + "] F5存 " + muteLabel, 507, hudY + 58);
 
-        // ── EXP 條（最底部 7px）──────────────────────────
-        int expY = SCREEN_HEIGHT - 7;
-        g.setColor(new Color(0, 40, 0));
-        g.fillRect(0, expY, SCREEN_WIDTH, 7);
-        g.setColor(new Color(65, 190, 65));
-        g.fillRect(0, expY, (int)(SCREEN_WIDTH * player.getExpRatio()), 7);
-        g.setColor(new Color(90, 240, 90, 160));
+        // ── EXP 條（最底部 8px，漸層發光）────────────────────
+        int expY = SCREEN_HEIGHT - 8;
+        g.setColor(new Color(0, 22, 0));
+        g.fillRect(0, expY, SCREEN_WIDTH, 8);
+
+        int expFillW = (int)(SCREEN_WIDTH * player.getExpRatio());
+        if (expFillW > 1) {
+            GradientPaint expGrad = new GradientPaint(
+                0, expY,     new Color(38, 165, 38),
+                0, expY + 8, new Color(110, 240, 60)
+            );
+            g.setPaint(expGrad);
+            g.fillRect(0, expY, expFillW, 8);
+            g.setPaint(null);
+            g.setColor(new Color(200, 255, 160, 70));
+            g.fillRect(0, expY, expFillW, 3);
+        }
+
         g.setFont(new Font("Arial", Font.BOLD, 7));
-        g.drawString("EXP", 3, expY + 6);
+        g.setColor(new Color(100, 220, 80, 210));
+        g.drawString("EXP", 3, expY + 7);
+    }
+
+    /** 帶陰影的 HUD 文字（先畫黑色偏移陰影，再畫彩色本體） */
+    private void drawHudText(Graphics2D g, String text, int x, int y, Color color) {
+        g.setColor(new Color(0, 0, 0, 170));
+        g.drawString(text, x + 1, y + 1);
+        g.setColor(color);
+        g.drawString(text, x, y);
     }
 
 
@@ -928,7 +960,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    /** 技能槽繪製（中右區，y+8 開始，槽 34×34）*/
+    /** 技能槽繪製（中右區，y+8 開始，槽 34×34，美化版）*/
     private void drawSkillSlots(Graphics2D g, int hudY) {
         if (player.getJob() == null) return;
         List<Skill> skills = player.getJob().getSkills();
@@ -942,34 +974,64 @@ public class GamePanel extends JPanel implements Runnable {
             Skill s  = skills.get(i);
             int   sx = startX + i * (slotSize + 4);
             int   sy = hudY + 8;
-
-            g.setColor(new Color(25, 25, 55));
-            g.fillRoundRect(sx, sy, slotSize, slotSize, 6, 6);
-
             double cdRatio = s.getCooldownRatio();
-            if (cdRatio > 0) {
-                g.setColor(new Color(0, 0, 0, 150));
+            boolean ready  = cdRatio <= 0;
+
+            // 外框陰影
+            g.setColor(new Color(0, 0, 0, 100));
+            g.fillRoundRect(sx + 1, sy + 1, slotSize, slotSize, 8, 8);
+
+            // 背景漸層（就緒稍亮）
+            GradientPaint slotGrad = new GradientPaint(
+                sx, sy,            ready ? new Color(30, 32, 75) : new Color(15, 16, 42),
+                sx, sy + slotSize, ready ? new Color(18, 20, 58) : new Color(9, 10, 28)
+            );
+            g.setPaint(slotGrad);
+            g.fillRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            g.setPaint(null);
+
+            // 冷卻遮罩（帶圓角裁剪）
+            if (!ready) {
+                java.awt.Shape savedClip = g.getClip();
+                g.setClip(new java.awt.geom.RoundRectangle2D.Float(sx, sy, slotSize, slotSize, 8, 8));
+                g.setColor(new Color(0, 0, 0, 160));
                 g.fillRect(sx, sy, slotSize, (int)(slotSize * cdRatio));
+                g.setClip(savedClip);
             }
 
+            // 技能名稱（帶陰影）
             g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 9));
-            g.setColor(cdRatio > 0 ? Color.GRAY : Color.WHITE);
-            FontMetrics fm = g.getFontMetrics();
             String label = s.getName();
-            g.drawString(label, sx + (slotSize - fm.stringWidth(label)) / 2,
-                         sy + slotSize / 2 + 3);
+            FontMetrics fm = g.getFontMetrics();
+            int lx = sx + (slotSize - fm.stringWidth(label)) / 2;
+            int ly = sy + slotSize / 2 + 3;
+            g.setColor(new Color(0, 0, 0, 180));
+            g.drawString(label, lx + 1, ly + 1);
+            g.setColor(ready ? Color.WHITE : new Color(130, 130, 130));
+            g.drawString(label, lx, ly);
 
+            // 邊框（就緒金色 + 內發光）
             g.setStroke(new BasicStroke(1.5f));
-            g.setColor(cdRatio > 0 ? new Color(70, 70, 110) : new Color(110, 170, 250));
-            g.drawRoundRect(sx, sy, slotSize, slotSize, 6, 6);
+            g.setColor(ready ? new Color(140, 108, 28) : new Color(55, 55, 105));
+            g.drawRoundRect(sx, sy, slotSize, slotSize, 8, 8);
+            if (ready) {
+                g.setColor(new Color(230, 190, 65, 65));
+                g.drawRoundRect(sx + 1, sy + 1, slotSize - 2, slotSize - 2, 6, 6);
+            }
             g.setStroke(new BasicStroke(1f));
 
+            // 按鍵標籤（左下，帶陰影）
             g.setFont(new Font("Arial", Font.BOLD, 8));
-            g.setColor(new Color(190, 190, 190));
-            g.drawString("[" + actions[i] + "]", sx + 2, sy + slotSize - 2);
+            g.setColor(new Color(0, 0, 0, 150));
+            g.drawString("[" + actions[i] + "]", sx + 3, sy + slotSize - 2);
+            g.setColor(new Color(180, 180, 220));
+            g.drawString("[" + actions[i] + "]", sx + 2, sy + slotSize - 3);
 
+            // MP 花費（左上，帶陰影）
             g.setFont(new Font("Arial", Font.PLAIN, 8));
-            g.setColor(new Color(90, 140, 250));
+            g.setColor(new Color(0, 0, 0, 150));
+            g.drawString(s.getMpCost() + "MP", sx + 3, sy + 11);
+            g.setColor(new Color(80, 140, 255));
             g.drawString(s.getMpCost() + "MP", sx + 2, sy + 10);
         }
     }
@@ -978,30 +1040,98 @@ public class GamePanel extends JPanel implements Runnable {
 
     private void drawBar(Graphics2D g, int x, int y,
                          String label, int cur, int max,
-                         Color bg, Color fg) {
-        int barW = 192, barH = 16;
-        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+                         Color bgColor, Color fgColor) {
+        int barW = 188, barH = 18;
+
+        // 標籤（白字帶黑色陰影）
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 12));
+        g.setColor(new Color(0, 0, 0, 180));
+        g.drawString(label, x + 1, y + 14);
         g.setColor(Color.WHITE);
-        g.drawString(label, x, y + 12);
-        g.setColor(bg);
-        g.fillRect(x + 26, y, barW, barH);
+        g.drawString(label, x, y + 13);
+
+        int bx = x + 26;
+
+        // 外框陰影
+        g.setColor(new Color(0, 0, 0, 110));
+        g.fillRoundRect(bx + 1, y + 1, barW, barH, 8, 8);
+
+        // 背景暗槽
+        g.setColor(bgColor.darker().darker());
+        g.fillRoundRect(bx, y, barW, barH, 8, 8);
+
+        // 漸層填充（使用圓角裁剪）
         double ratio = max > 0 ? (double) cur / max : 0;
-        g.setColor(fg);
-        g.fillRect(x + 26, y, (int)(barW * ratio), barH);
-        g.setColor(Color.WHITE);
-        g.drawRect(x + 26, y, barW, barH);
+        int fillW = (int)(barW * ratio);
+        if (fillW > 2) {
+            GradientPaint grad = new GradientPaint(
+                bx, y,        fgColor,
+                bx, y + barH, fgColor.darker()
+            );
+            g.setPaint(grad);
+            java.awt.Shape savedClip = g.getClip();
+            g.setClip(new java.awt.geom.RoundRectangle2D.Float(bx, y, barW, barH, 8, 8));
+            g.fillRect(bx, y, fillW, barH);
+            // 頂部光澤
+            g.setPaint(null);
+            g.setColor(new Color(255, 255, 255, 55));
+            g.fillRect(bx, y + 1, fillW, barH / 2);
+            g.setClip(savedClip);
+        }
+
+        // 外框（帶圓角）
+        g.setColor(new Color(0, 0, 0, 200));
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawRoundRect(bx, y, barW, barH, 8, 8);
+        g.setStroke(new BasicStroke(1f));
+
+        // 數值文字（居中，八方向黑色輪廓確保任何底色都可讀）
+        String valStr = cur + "/" + max;
         g.setFont(new Font("Arial", Font.BOLD, 10));
-        g.drawString(cur + "/" + max, x + 30, y + 12);
+        FontMetrics fm = g.getFontMetrics();
+        int vx = bx + (barW - fm.stringWidth(valStr)) / 2;
+        int vy = y + 13;
+        g.setColor(new Color(0, 0, 0, 210));
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+                if (dx != 0 || dy != 0)
+                    g.drawString(valStr, vx + dx, vy + dy);
+        g.setColor(Color.WHITE);
+        g.drawString(valStr, vx, vy);
     }
 
     private void drawHudButton(Graphics2D g, String label, int x, int y, int w, int h) {
-        g.setColor(new Color(38, 38, 70));
-        g.fillRoundRect(x, y, w, h, 6, 6);
-        g.setColor(new Color(90, 90, 165));
-        g.drawRoundRect(x, y, w, h, 6, 6);
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("Microsoft JhengHei", Font.PLAIN, 10));
+        // 陰影
+        g.setColor(new Color(0, 0, 0, 110));
+        g.fillRoundRect(x + 1, y + 1, w, h, 8, 8);
+
+        // 背景漸層
+        GradientPaint btnGrad = new GradientPaint(
+            x, y,     new Color(34, 40, 82),
+            x, y + h, new Color(18, 22, 52)
+        );
+        g.setPaint(btnGrad);
+        g.fillRoundRect(x, y, w, h, 8, 8);
+        g.setPaint(null);
+
+        // 頂部高光（細條）
+        g.setColor(new Color(255, 255, 255, 25));
+        g.fillRoundRect(x + 1, y + 1, w - 2, h / 2, 6, 6);
+
+        // 金色邊框
+        g.setColor(new Color(140, 105, 28));
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawRoundRect(x, y, w, h, 8, 8);
+        g.setStroke(new BasicStroke(1f));
+
+        // 文字（金黃色帶陰影）
+        g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 10));
         FontMetrics fm = g.getFontMetrics();
-        g.drawString(label, x + (w - fm.stringWidth(label)) / 2, y + h - 5);
+        int tx = x + (w - fm.stringWidth(label)) / 2;
+        int ty = y + h - 6;
+        g.setColor(new Color(0, 0, 0, 180));
+        g.drawString(label, tx + 1, ty + 1);
+        g.setColor(new Color(215, 195, 145));
+        g.drawString(label, tx, ty);
     }
 }
