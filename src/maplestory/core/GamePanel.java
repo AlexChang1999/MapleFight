@@ -543,13 +543,35 @@ public class GamePanel extends JPanel implements Runnable {
         if (result == null || result.isEmpty()) return;
         if (result.startsWith("TELEPORT:")) {
             String targetMapId = result.substring(9);
+            boolean centerSpawn = false;
+
+            // 回家卷軸：依當前地圖自動決定目標村莊
+            if (targetMapId.equals("HOME")) {
+                targetMapId = mapManager.getHomeMapId(mapManager.getCurrentMap().getMapId());
+                centerSpawn = true;
+            }
+            // 村莊卷軸：傳送至指定地圖正中央
+            else if (targetMapId.startsWith("VCENTER:")) {
+                targetMapId = targetMapId.substring(8);
+                centerSpawn = true;
+            }
+
+            // 已在目標地圖則提示不需傳送
+            if (targetMapId.equals(mapManager.getCurrentMap().getMapId())) {
+                pickupNotice      = "已在" + mapManager.getCurrentMap().getMapName();
+                pickupNoticeTimer = 1.5;
+                return;
+            }
+
             int gY = GamePanel.GAME_HEIGHT - 40;
-            double spawnX = switch (targetMapId) {
-                case "village"  -> 400;
-                case "frontier" -> 400;
-                case "battle"   -> 300;
-                default         -> 200;
-            };
+            double spawnX = centerSpawn
+                ? mapManager.getMapWidth(targetMapId) / 2.0
+                : switch (targetMapId) {
+                    case "village"  -> 400;
+                    case "frontier" -> 400;
+                    case "battle"   -> 300;
+                    default         -> 200;
+                };
             mapManager.switchMap(targetMapId, spawnX, gY - 80, player);
             camera.snapTo(player.getX(), player.getY(),
                           mapManager.getCurrentMap().getMapWidth());

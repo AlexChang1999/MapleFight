@@ -1,4 +1,4 @@
-﻿package maplestory.item;
+package maplestory.item;
 
 /**
  * 消耗品（回血藥 / 回魔藥 / 傳送卷軸）。

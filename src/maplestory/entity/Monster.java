@@ -411,18 +411,39 @@ public class Monster {
         int cx = sx + width / 2;
         int eyeY = sy + (height - drawH) + drawH / 3;
 
-        // 眼睛
+        // ── 眼睛（楓之谷 kawaii 風：大眼白 + 彩色虹膜 + 雙重高光）
+        int pupilOff = facingRight ? 2 : -2;
+        // 左眼
         g.setColor(Color.WHITE);
-        g.fillOval(cx - 9, eyeY, 7, 8);
-        g.fillOval(cx + 2, eyeY, 7, 8);
-        g.setColor(Color.BLACK);
-        int pupilOff = facingRight ? 2 : -2; // 瞳孔跟著看玩家
-        g.fillOval(cx - 8 + pupilOff, eyeY + 2, 4, 4);
-        g.fillOval(cx + 3 + pupilOff, eyeY + 2, 4, 4);
+        g.fillOval(cx - 10, eyeY, 9, 10);
+        g.setColor(new Color(40, 160, 70));          // 綠色虹膜
+        g.fillOval(cx - 9,  eyeY + 1, 6,  8);
+        g.setColor(new Color(15, 10, 5));            // 瞳孔
+        g.fillOval(cx - 8 + pupilOff, eyeY + 2, 4, 6);
+        g.setColor(new Color(255, 255, 255, 220));   // 大高光
+        g.fillOval(cx - 7 + pupilOff, eyeY + 2, 3, 3);
+        g.fillOval(cx - 9 + pupilOff, eyeY + 6, 2, 2); // 小高光
+        g.setColor(new Color(20, 10, 5));
+        g.setStroke(new BasicStroke(1f));
+        g.drawOval(cx - 10, eyeY, 9, 10);           // 眼線
 
-        // 嘴巴（小弧線）
-        g.setStroke(new BasicStroke(1.5f));
-        g.drawArc(cx - 5, eyeY + 8, 10, 6, 200, 140);
+        // 右眼
+        g.setColor(Color.WHITE);
+        g.fillOval(cx + 1, eyeY, 9, 10);
+        g.setColor(new Color(40, 160, 70));
+        g.fillOval(cx + 2, eyeY + 1, 6,  8);
+        g.setColor(new Color(15, 10, 5));
+        g.fillOval(cx + 3 + pupilOff, eyeY + 2, 4, 6);
+        g.setColor(new Color(255, 255, 255, 220));
+        g.fillOval(cx + 4 + pupilOff, eyeY + 2, 3, 3);
+        g.fillOval(cx + 2 + pupilOff, eyeY + 6, 2, 2);
+        g.setColor(new Color(20, 10, 5));
+        g.drawOval(cx + 1, eyeY, 9, 10);
+
+        // 嘴巴（寬笑，更有表情）
+        g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(new Color(30, 15, 5));
+        g.drawArc(cx - 6, eyeY + 9, 12, 7, 200, 140);
         g.setStroke(new BasicStroke(1f));
     }
 
@@ -631,13 +652,33 @@ public class Monster {
         int cx = sx + width / 2;
         int eyeY = bodyTop + drawH / 3;
 
-        // 眼睛（藍紫色）
-        g.setColor(new Color(200, 220, 255));
-        g.fillOval(cx - 9, eyeY, 7, 8);
-        g.fillOval(cx + 2, eyeY, 7, 8);
-        g.setColor(new Color(80, 60, 180));
-        g.fillOval(cx - 7, eyeY + 2, 4, 4);
-        g.fillOval(cx + 4, eyeY + 2, 4, 4);
+        // 眼睛（冰藍 kawaii 風：藍色虹膜 + 冰晶高光）
+        int icePupilOff = facingRight ? 2 : -2;
+        // 左眼
+        g.setColor(new Color(220, 240, 255));
+        g.fillOval(cx - 10, eyeY, 9, 10);
+        g.setColor(new Color(80, 130, 220));         // 冰藍虹膜
+        g.fillOval(cx - 9,  eyeY + 1, 6, 8);
+        g.setColor(new Color(40, 30, 120));          // 深藍瞳孔
+        g.fillOval(cx - 8 + icePupilOff, eyeY + 2, 4, 6);
+        g.setColor(new Color(255, 255, 255, 230));   // 大高光
+        g.fillOval(cx - 7 + icePupilOff, eyeY + 2, 3, 3);
+        g.fillOval(cx - 9 + icePupilOff, eyeY + 6, 2, 2);
+        g.setColor(new Color(100, 160, 255, 150));   // 冰藍眼線
+        g.setStroke(new BasicStroke(1f));
+        g.drawOval(cx - 10, eyeY, 9, 10);
+        // 右眼
+        g.setColor(new Color(220, 240, 255));
+        g.fillOval(cx + 1, eyeY, 9, 10);
+        g.setColor(new Color(80, 130, 220));
+        g.fillOval(cx + 2, eyeY + 1, 6, 8);
+        g.setColor(new Color(40, 30, 120));
+        g.fillOval(cx + 3 + icePupilOff, eyeY + 2, 4, 6);
+        g.setColor(new Color(255, 255, 255, 230));
+        g.fillOval(cx + 4 + icePupilOff, eyeY + 2, 3, 3);
+        g.fillOval(cx + 2 + icePupilOff, eyeY + 6, 2, 2);
+        g.setColor(new Color(100, 160, 255, 150));
+        g.drawOval(cx + 1, eyeY, 9, 10);
 
         // 冰刺（頂部小三角）
         g.setColor(new Color(180, 230, 255));

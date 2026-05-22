@@ -1,4 +1,4 @@
-﻿package maplestory.core;
+package maplestory.core;
 
 import maplestory.audio.SFX;
 import maplestory.audio.SoundManager;

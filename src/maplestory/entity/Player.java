@@ -511,57 +511,41 @@ public class Player {
 
         int legSwing = onGround && !attacking ? (int)(Math.sin(walkAnim) * 10) : 0;
 
-        g.setStroke(new BasicStroke(2.2f));
+        // ── 抗鋸齒開啟（楓之谷風格關鍵）────────────────────────
+        CharacterSprite.enableAA(g);
 
-        // ── 披風（在身體後方，最先畫）────────────────────────
-        if (capeEq != null) drawCape(g, cx, sy, capeEq.getDisplayColor());
+        // ── 披風（身體後方最先畫）────────────────────────────
+        if (capeEq != null)
+            CharacterSprite.drawCape(g, cx, sy, capeEq.getDisplayColor(), facingRight);
 
-        // ── 身體（上衣，填色圓角矩形）────────────────────────
-        g.setColor(topColor);
-        g.fillRoundRect(cx - 8, sy + 20, 16, 20, 4, 4);
-        g.setColor(topColor.darker());
-        g.setStroke(new BasicStroke(1.5f));
-        g.drawRoundRect(cx - 8, sy + 20, 16, 20, 4, 4);
-        g.setStroke(new BasicStroke(2.2f));
+        // ── 身體（上衣，22px 寬含黑邊）──────────────────────
+        CharacterSprite.drawBody(g, cx, sy, topColor);
 
-        // ── 手臂（含連擊動畫）────────────────────────────────
+        // ── 手臂（含連擊動畫，保留在 Player 因為有複雜攻擊狀態）
         drawArms(g, cx, sy, topColor, gloveColor);
 
-        // ── 腳（下褲色，走路對向擺動，有厚度）───────────────
-        g.setStroke(new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.setColor(bottomColor);
-        g.drawLine(cx - 2, sy + 40, cx - 8 - legSwing, sy + 56);
-        g.drawLine(cx + 2, sy + 40, cx + 8 + legSwing, sy + 56);
-        g.setStroke(new BasicStroke(2.2f));
+        // ── 腿（黑邊輪廓 + 褲色）────────────────────────────
+        CharacterSprite.drawLegs(g, cx, sy, bottomColor, legSwing);
 
-        // ── 靴子（梯形填色）──────────────────────────────────
-        boolean leftToe  = !facingRight; // 鞋尖方向
-        boolean rightToe = facingRight;
-        drawBoot(g, cx - 8 - legSwing, sy + 56, bootColor, leftToe);
-        drawBoot(g, cx + 8 + legSwing, sy + 56, bootColor, rightToe);
+        // ── 靴子（梯形 + 黑邊）──────────────────────────────
+        CharacterSprite.drawBoots(g, cx, sy, bootColor, legSwing, facingRight);
 
-        // ── 頭（楓之谷大頭感 22×24）──────────────────────────
-        drawHead(g, cx, sy);
+        // ── 頭（26×28 圓角矩形，楓之谷方臉感）───────────────
+        CharacterSprite.drawHead(g, cx, sy, appearance, facingRight);
 
-        // ── 髮型（頭盔蓋在髮型上，所以先畫髮型）─────────────
-        drawHair(g, cx, sy);
+        // ── 髮型（頭盔蓋在髮型上，先畫髮型）────────────────
+        CharacterSprite.drawHair(g, cx, sy, appearance, facingRight);
 
-        // ── 頭盔（蓋在頭頂和髮型上）──────────────────────────
-        if (helmetEq != null) drawHelmet(g, cx, sy, helmetEq.getDisplayColor());
+        // ── 頭盔（蓋在髮型上）───────────────────────────────
+        if (helmetEq != null)
+            CharacterSprite.drawHelmet(g, cx, sy, helmetEq.getDisplayColor());
 
-        // ── 耳環（頭側小圓，配合新頭部大小調整位置）─────────
-        if (earringEq != null) {
-            int earX = facingRight ? cx + 10 : cx - 10;
-            g.setColor(earringEq.getDisplayColor());
-            g.fillOval(earX - 3, sy + 15, 6, 6);
-            g.setColor(earringEq.getDisplayColor().darker());
-            g.setStroke(new BasicStroke(1f));
-            g.drawOval(earX - 3, sy + 15, 6, 6);
-            g.setStroke(new BasicStroke(2.2f));
-        }
+        // ── 耳環 ────────────────────────────────────────────
+        if (earringEq != null)
+            CharacterSprite.drawEarring(g, cx, sy, earringEq.getDisplayColor(), facingRight);
 
-        // ── 臉部（眉毛 + 眼睛 + 嘴，繪製在最上層）───────────
-        drawFace(g, cx, sy);
+        // ── 臉部（眉毛 + 眼睛 + 嘴，最上層）────────────────
+        CharacterSprite.drawFace(g, cx, sy, appearance, facingRight, attacking, hurtTimer);
 
         // ── 角色名稱（腳下 4px，黑邊白字）────────────────────
         g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
@@ -576,27 +560,15 @@ public class Player {
         g.drawString(name, nameX, nameY);
     }
 
-    /** 靴子：梯形填色（鞋尖依面向延伸） */
-    private void drawBoot(Graphics2D g, int footX, int footY, Color color, boolean toeRight) {
-        int toe = toeRight ? 3 : -3;
-        int[] bx = {footX - 4 + toe, footX + 8 + toe, footX + 8, footX - 4};
-        int[] by = {footY,            footY,            footY + 7, footY + 7};
-        g.setColor(color);
-        g.fillPolygon(bx, by, 4);
-        g.setColor(color.darker());
-        g.setStroke(new BasicStroke(1f));
-        g.drawPolygon(bx, by, 4);
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
     // ═══════════════════════════════════════════════════════════
-    // 外觀繪製（頭部 / 髮型 / 臉部）
+    // 外觀繪製已全數遷移至 CharacterSprite.java
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * 頭部：楓之谷風 22×24 大頭（比原本 20×20 更有比例感）
-     * 包含陰影底層 + 臉頰紅暈。
+     * ── 以下舊方法已移至 CharacterSprite.java，保留空方法避免編譯錯誤 ──
+     * @deprecated 請改用 CharacterSprite.drawHead()
      */
+    @Deprecated
     private void drawHead(Graphics2D g, int cx, int sy) {
         Color skin    = appearance.skinColor;
         Color outline = new Color(
