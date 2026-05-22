@@ -64,7 +64,7 @@ public class NoviceMap1 extends BaseMap {
     private void buildPortals() {
         portals.add(new Portal(
             22, GROUND_Y - Portal.HEIGHT,
-            "village", 80, GROUND_Y - 80,
+            "village", VillageMap.MAP_WIDTH - 130, GROUND_Y - 80,
             "回新手村", 1
         ));
         portals.add(new Portal(

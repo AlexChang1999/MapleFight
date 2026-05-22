@@ -67,17 +67,11 @@ public class VillageMap extends BaseMap {
 
     // ── 傳送門 ───────────────────────────────────────────────
     private void buildPortals() {
-        // 左側傳送門 → 新手森林一區（無等級限制）
-        portals.add(new Portal(
-            22, groundY - Portal.HEIGHT,
-            "novice1", NoviceMap1.MAP_WIDTH - 130, groundY - 80,
-            "前往新手林", 1
-        ));
-        // 右側傳送門 → 冒險平原（需要 Lv.10）
+        // 右側傳送門 → 新手森林一區（無等級限制）
         portals.add(new Portal(
             MAP_WIDTH - 90, groundY - Portal.HEIGHT,
-            "battle", 150, 300,
-            "冒險平原(Lv.10)", 10
+            "novice1", 50, groundY - 80,
+            "前往新手林", 1
         ));
     }
 
