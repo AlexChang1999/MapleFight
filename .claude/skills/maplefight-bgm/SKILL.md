@@ -12,13 +12,23 @@ description: >
 
 ## 第一步：讀取規格書（必做）
 
-**在回答任何音樂相關問題之前，必須先讀取：**
+**在回答任何音樂相關問題之前，必須先讀取以下所有檔案：**
 
 ```
-H:\MapleGame\BGM_SPECS.md
+H:\MapleGame\docs\audio\bgm-design-philosophy.md
+H:\MapleGame\docs\audio\bgm-quick-reference.md
+H:\MapleGame\docs\audio\bgm\village.md
+H:\MapleGame\docs\audio\bgm\novice1.md
+H:\MapleGame\docs\audio\bgm\novice2.md
+H:\MapleGame\docs\audio\bgm\novice3.md
+H:\MapleGame\docs\audio\bgm\frontier.md
+H:\MapleGame\docs\audio\bgm\battle.md
+H:\MapleGame\docs\audio\bgm\icepost.md
+H:\MapleGame\docs\audio\bgm\arctic.md
+H:\MapleGame\docs\audio\bgm-new-map-template.md
 ```
 
-這份文件包含：
+這些文件合計包含：
 - 核心設計哲學（楓之谷美學標準）
 - 全部 8 張地圖的完整 BGM 規格（調性、BPM、配器、AI Prompt）
 - 新地圖 BGM 的標準輸出格式
@@ -40,7 +50,7 @@ H:\MapleGame\BGM_SPECS.md
 
 ### 情況 C：修改現有地圖的 BGM 設定
 先引用原始設定，說明修改點，並確保修改後仍符合楓之谷美學（管弦樂+流行骨架+魔幻裝飾）。
-修改後更新 BGM_SPECS.md 中對應地圖的欄位。
+修改後更新 `docs/audio/bgm/[地圖id].md` 中對應地圖的欄位。
 
 ### 情況 D：SoundManager.java 實作
 若使用者詢問如何用 Java 程式生成音樂，根據 BGM_SPECS.md 中各地圖的 BPM 與調性，
