@@ -26,7 +26,7 @@ public class GameMap extends BaseMap {
         // 左側傳送門 → 前線前哨站（無等級限制）
         portals.add(new Portal(
             30, groundY - Portal.HEIGHT,
-            "frontier", FrontierTown.MAP_WIDTH - 68, groundY - 80,
+            "frontier", FrontierTown.MAP_WIDTH - 130, groundY - 80,
             "回前哨站", 1
         ));
 

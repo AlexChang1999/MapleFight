@@ -1,5 +1,6 @@
 package maplestory.core;
 
+import maplestory.entity.BossMonster;
 import maplestory.entity.Monster;
 import maplestory.entity.MonsterType;
 import maplestory.entity.NPC;
@@ -61,7 +62,14 @@ public class GamePanel extends JPanel implements Runnable {
     private final List<Monster> novice3Monsters = new ArrayList<>();
     private final List<Monster> battleMonsters  = new ArrayList<>();
     private final List<Monster> arcticMonsters  = new ArrayList<>();
-    private boolean prevAttacking = false;
+    private final List<Monster> forestMonsters  = new ArrayList<>();
+    private final List<Monster> desertMonsters  = new ArrayList<>();
+    private boolean prevAttacking  = false;
+    private boolean skillJustUsed  = false;
+
+    // ── Boss ─────────────────────────────────────────────────────
+    private final BossMonster forestBoss;
+    private final BossMonster desertBoss;
 
     // ── 暫停選單 ─────────────────────────────────────────────
     private boolean paused = false;
@@ -243,6 +251,49 @@ public class GamePanel extends JPanel implements Runnable {
         arcticMonsters.add(new Monster(1660, 200, MonsterType.ICE_BAT));
         arcticMonsters.add(new Monster(1910, 200, MonsterType.ICE_BAT));
         arcticMonsters.add(new Monster(2160, 200, MonsterType.ICE_BAT));
+
+        // ── 古老森林（藤蔓蜘蛛 ×10 + 沙漠蠍預熱 ×0；純蜘蛛區）─
+        forestMonsters.add(new Monster( 300, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster( 500, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster( 720, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster( 950, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(1180, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(1420, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(1660, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(1900, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(2130, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(2380, 300, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster( 430, 210, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster( 860, 210, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(1310, 210, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(1750, 210, MonsterType.VINE_SPIDER));
+        forestMonsters.add(new Monster(2200, 210, MonsterType.VINE_SPIDER));
+
+        // ── 沙漠廢墟（沙漠蠍 ×12 + 藤蔓蜘蛛殘黨 ×6）──────────
+        desertMonsters.add(new Monster( 280, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster( 480, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster( 700, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster( 940, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(1170, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(1420, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(1660, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(1900, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(2140, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(2380, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(2560, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster(2700, 300, MonsterType.DESERT_SCORPION));
+        desertMonsters.add(new Monster( 420, 210, MonsterType.VINE_SPIDER));
+        desertMonsters.add(new Monster( 850, 210, MonsterType.VINE_SPIDER));
+        desertMonsters.add(new Monster(1290, 210, MonsterType.VINE_SPIDER));
+        desertMonsters.add(new Monster(1730, 210, MonsterType.VINE_SPIDER));
+        desertMonsters.add(new Monster(2170, 210, MonsterType.VINE_SPIDER));
+        desertMonsters.add(new Monster(2560, 210, MonsterType.VINE_SPIDER));
+
+        // ── Boss 初始化 ──────────────────────────────────────────
+        // 古老森林 Boss：葛羅芬在地圖右端（X=2480，地面 Y）
+        int bossGroundY = GAME_HEIGHT - 40 - 96; // 地面 Y 減去 Boss 高度
+        forestBoss = new BossMonster(BossMonster.BossType.GLOFEN,  2480, bossGroundY);
+        desertBoss = new BossMonster(BossMonster.BossType.PHARAOH, 2660, bossGroundY - 12);
 
         // ── 鍵盤監聽：UI 面板 + ESC + F5 ────────────────────
         addKeyListener(new KeyAdapter() {
@@ -432,8 +483,9 @@ public class GamePanel extends JPanel implements Runnable {
             if ("item".equals(shopId)) {
                 shopPanel.open("道具商人的商店", ShopPanel.itemShopEntries(), "item");
             } else if ("weapon".equals(shopId)) {
-                // 前線前哨站或冰原驛站使用進階裝備清單
-                boolean advanced = "frontier".equals(curMapId) || "icepost".equals(curMapId);
+                // 前線前哨站、冰原驛站或叢林前哨站使用進階裝備清單
+                boolean advanced = "frontier".equals(curMapId) || "icepost".equals(curMapId)
+                                || "junglepost".equals(curMapId);
                 java.util.List<maplestory.item.ShopEntry> entries = advanced
                     ? ShopPanel.frontierWeaponEntries()
                     : ShopPanel.weaponShopEntries();
@@ -597,7 +649,18 @@ public class GamePanel extends JPanel implements Runnable {
             case "novice3"   -> novice3Monsters;
             case "battle"    -> battleMonsters;
             case "arctic"    -> arcticMonsters;
+            case "forest"    -> forestMonsters;
+            case "desert"    -> desertMonsters;
             default          -> java.util.Collections.emptyList(); // village/frontier/icepost
+        };
+    }
+
+    /** 回傳目前地圖對應的 Boss（null = 無 Boss） */
+    private BossMonster currentBoss() {
+        return switch (mapManager.getCurrentMap().getMapId()) {
+            case "forest" -> forestBoss;
+            case "desert" -> desertBoss;
+            default       -> null;
         };
     }
 
@@ -666,12 +729,74 @@ public class GamePanel extends JPanel implements Runnable {
             drops.clear(); // 清除上個地圖殘留的掉落物
         }
 
+        // ── Boss 更新 ─────────────────────────────────────────
+        // 注意：mapManager.update() 可能切換地圖，需重新取得 currentMap
+        currentMap = mapManager.getCurrentMap();
+        BossMonster boss = currentBoss();
+        if (boss != null) {
+            boss.update(dt, currentMap, player);
+
+            // 玩家攻擊 Boss 的碰撞判定
+            Rectangle atkBox = player.getAttackBox();
+            if (atkBox != null && boss.getBoundingBox().intersects(atkBox)) {
+                boss.takeDamage(player.getAttackDamage());
+            }
+
+            // Boss 死亡 EXP
+            if (boss.pollJustDied()) {
+                player.gainExp(boss.getExpReward());
+                player.addKill();
+                if (boss == forestBoss) questManager.onBossKilled("glofen");
+                else if (boss == desertBoss) questManager.onBossKilled("pharaoh");
+            }
+
+            // Boss 掉落物
+            if (boss.pollDropPending()) {
+                drops.addAll(boss.rollDrops());
+            }
+
+            // 封牆：Boss 存活且戰鬥觸發時，玩家不能逃出戰場
+            if (boss.isArenaActive()) {
+                double px = player.getX();
+                if (px < boss.getArenaLeft()) {
+                    player.setPosition(boss.getArenaLeft(), player.getY());
+                } else if (px + Player.WIDTH > boss.getArenaRight()) {
+                    player.setPosition(boss.getArenaRight() - Player.WIDTH, player.getY());
+                }
+            }
+        }
+
         // 技能輸入
         List<Monster> curMonsters = currentMonsters();
         int pendingSkill = inputHandler.pollPendingSkill();
+        skillJustUsed = false;
         if (pendingSkill >= 0 && !curMonsters.isEmpty()) {
             player.useSkill(pendingSkill, curMonsters);
             SoundManager.get().playSFX(pendingSkill == 0 ? SFX.SKILL_THRUST : SFX.SKILL_SHOCKWAVE);
+
+            // Boss skill hit detection
+            if (!skillJustUsed && boss != null && boss.isTriggered() && boss.isAlive()) {
+                int px  = (int) player.getX();
+                int py  = (int) player.getY();
+                int pcx = px + Player.WIDTH  / 2;
+                int pcy = py + Player.HEIGHT / 2;
+                Rectangle skillBox;
+                double mult;
+                if (pendingSkill == 0) {
+                    // Thrust: forward-facing rect, width=120, height=Player.HEIGHT
+                    int bx = player.isFacingRight() ? px + Player.WIDTH : px - 120;
+                    skillBox = new Rectangle(bx, py, 120, Player.HEIGHT);
+                    mult = 1.8;
+                } else {
+                    // Shockwave AOE: 380px horiz, 220px vert of player centre
+                    skillBox = new Rectangle(pcx - 380, pcy - 220, 760, 440);
+                    mult = 2.4;
+                }
+                if (boss.getBoundingBox().intersects(skillBox)) {
+                    boss.takeDamage((int)(player.getAttackDamage() * mult));
+                    skillJustUsed = true;
+                }
+            }
         }
 
         // 怪物更新
@@ -804,9 +929,15 @@ public class GamePanel extends JPanel implements Runnable {
     private void drawGameArea(Graphics2D g) {
         BaseMap currentMap = mapManager.getCurrentMap();
 
-        // 天空漸層（極地地圖自己畫夜空，novice3 畫傍晚，各 novice 地圖也自繪天空）
+        // 天空漸層（各地圖自繪天空者跳過預設藍天）
         String mapId = currentMap.getMapId();
-        if (!mapId.equals("arctic") && !mapId.startsWith("novice") && !mapId.equals("icepost")) {
+        boolean mapDrawsOwnSky = mapId.equals("arctic")
+                              || mapId.startsWith("novice")
+                              || mapId.equals("icepost")
+                              || mapId.equals("forest")
+                              || mapId.equals("junglepost")
+                              || mapId.equals("desert");
+        if (!mapDrawsOwnSky) {
             GradientPaint sky = new GradientPaint(
                 0, 0,           new Color(100, 180, 240),
                 0, GAME_HEIGHT, new Color(170, 220, 255)
@@ -822,11 +953,35 @@ public class GamePanel extends JPanel implements Runnable {
 
         for (Monster m : currentMonsters()) m.draw(g, camera);
 
+        // Boss 繪製
+        BossMonster boss = currentBoss();
+        if (boss != null) {
+            boss.draw(g, camera);
+        }
+
         if (player.getJob() != null) {
             player.getJob().drawEffects(g, camera);
         }
 
         player.draw(g, camera);
+
+        // Boss HP 條（疊在遊戲畫面頂部）
+        if (boss != null) {
+            boss.drawBossHpBar(g);
+        }
+
+        // ATK 詛咒異常狀態提示（左上角）
+        if (player.isAtkDebuffed()) {
+            double debuffTimer = player.getAtkDebuffTimer();
+            g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
+            String debuffText = String.format("⚠ 攻擊力降低 (%.1fs)", debuffTimer);
+            FontMetrics dfm = g.getFontMetrics();
+            int dw = dfm.stringWidth(debuffText);
+            g.setColor(new Color(0, 0, 0, 150));
+            g.fillRoundRect(6, 6, dw + 14, 20, 6, 6);
+            g.setColor(new Color(255, 80, 50));
+            g.drawString(debuffText, 13, 21);
+        }
     }
 
     /**

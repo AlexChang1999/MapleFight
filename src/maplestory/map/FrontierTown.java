@@ -71,7 +71,7 @@ public class FrontierTown extends BaseMap {
         // 左側 → 新手森林三區
         portals.add(new Portal(
             22, GROUND_Y - Portal.HEIGHT,
-            "novice3", NoviceMap3.MAP_WIDTH - 68, GROUND_Y - 80,
+            "novice3", NoviceMap3.MAP_WIDTH - 130, GROUND_Y - 80,
             "回三區", 1
         ));
         // 右側 → 冒險平原（Lv.10）

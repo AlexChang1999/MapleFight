@@ -12,7 +12,9 @@ public enum MonsterType {
     BAT       ("蝙蝠",      38, 26,  60, 10,  280,  75,   50, false,  5),
     ICE_SLIME ("冰晶史萊姆",38, 30,  80, 10,  240,  45,   55, true,   5),
     POLAR_BEAR("極地熊",    58, 44, 180, 22,  260,  65,  160, true,   8),
-    ICE_BAT   ("冰蝠",      38, 26,  90, 12,  300,  95,   80, true,   6);
+    ICE_BAT        ("冰蝠",      38, 26,  90, 12,  300,  95,   80, true,   6),
+    VINE_SPIDER    ("藤蔓蜘蛛",  50, 36, 140, 20,  280,  85,  130, false,  7),
+    DESERT_SCORPION("沙漠蠍",    44, 32, 160, 25,  260,  75,  150, false,  7);
 
     public final String  displayName;
     public final int     width;

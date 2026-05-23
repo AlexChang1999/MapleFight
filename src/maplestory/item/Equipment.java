@@ -257,6 +257,38 @@ public class Equipment {
             0, 2, 0, 0, 0, 5, 45, 0, new Color(45, 135, 75), SET_JADE, 20);
     }
 
+    // ── 古老森林 Boss 掉落 ────────────────────────────────────
+
+    /** 森之核心護符：DEF +12  HP +60  MP +20（葛羅芬掉落） */
+    public static Equipment forestCoreAmulet() {
+        return new Equipment("森之核心護符", EquipSlot.EARRING, ItemRarity.EPIC,
+            "DEF +12  HP +60  MP +20",
+            0, 0, 0, 0, 0, 12, 60, 20, new Color(60, 210, 80), null, 20);
+    }
+
+    /** 藤蔓纏腕：ATK +8  DEF +5  HP +30（葛羅芬掉落） */
+    public static Equipment vineWristguard() {
+        return new Equipment("藤蔓纏腕", EquipSlot.GLOVES, ItemRarity.EPIC,
+            "ATK +8  DEF +5  HP +30",
+            0, 0, 0, 0, 8, 5, 30, 0, new Color(50, 170, 65), null, 20);
+    }
+
+    // ── 沙漠廢墟 Boss 掉落 ────────────────────────────────────
+
+    /** 法老彎刀：ATK +35  STR +5（法拉歐掉落，劍士最強武器） */
+    public static Equipment pharaohCurvedSword() {
+        return new Equipment("法老彎刀", EquipSlot.WEAPON, ItemRarity.LEGENDARY,
+            "ATK +35  STR +5",
+            5, 0, 0, 0, 35, 0, 0, 0, new Color(200, 170, 50), null, 30);
+    }
+
+    /** 聖甲蟲護符：ATK +20  DEF +15  HP +50（法拉歐掉落） */
+    public static Equipment scarabAmulet() {
+        return new Equipment("聖甲蟲護符", EquipSlot.EARRING, ItemRarity.LEGENDARY,
+            "ATK +20  DEF +15  HP +50",
+            0, 0, 0, 0, 20, 15, 50, 0, new Color(50, 140, 220), null, 30);
+    }
+
     // ── 套裝加成計算（由 Player.recalculateStats() 呼叫） ──────
     /** 計算套裝件數並回傳加成（返回 {strBonus, defBonus, atkBonus, hpBonus}） */
     public static int[] calcSetBonus(java.util.Collection<Equipment> equipped) {

@@ -3,6 +3,7 @@ package maplestory.quest;
 import maplestory.entity.MonsterType;
 import maplestory.entity.Player;
 import maplestory.item.Consumable;
+import maplestory.item.Equipment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,7 @@ public class QuestManager {
     }
 
     // ─────────────────────────────────────────────────────────────
-    private final Quest[] quests = new Quest[3];
+    private final Quest[] quests = new Quest[5];
 
     public QuestManager() {
         quests[0] = new Quest(0, "初出茅廬",
@@ -53,6 +54,14 @@ public class QuestManager {
         quests[2] = new Quest(2, "冒險者之路",
             "你已是村子的守護英雄！\n前往東邊的冒險平原，\n那裡才是真正考驗冒險者的地方。",
             "battle");
+
+        quests[3] = new Quest(3, "古林的試煉",
+            "深入古老森林，擊敗荊棘守衛者葛羅芬，\n取回被封印的森林之心。",
+            "glofen", true);
+
+        quests[4] = new Quest(4, "沙漠的詛咒",
+            "前往沙漠廢墟，對抗永恆守墓者法拉歐，\n解除籠罩沙漠的古代詛咒。",
+            "pharaoh", true);
     }
 
     // ── 事件回呼 ─────────────────────────────────────────────────
@@ -71,6 +80,15 @@ public class QuestManager {
         for (Quest q : quests) {
             if (q.getState() == Quest.State.IN_PROGRESS) {
                 q.onMapEntered(mapId);
+            }
+        }
+    }
+
+    /** Boss 死亡時呼叫。bossId = "glofen" | "pharaoh" */
+    public void onBossKilled(String bossId) {
+        for (Quest q : quests) {
+            if (q.getState() == Quest.State.IN_PROGRESS) {
+                q.onBossKilled(bossId);
             }
         }
     }
@@ -140,7 +158,7 @@ public class QuestManager {
 
         // 全部完成
         return new DialogueData("村長老人",
-            "感謝你保護了我們的村子！\n你已是真正的冒險者了，\n你的未來無可限量！")
+            "感謝你保護了我們的村子！\n森林與沙漠的威脅都已解除，\n你是這片大地的真正英雄！")
             .addOption("謝謝您！", "dismiss");
     }
 
@@ -164,6 +182,8 @@ public class QuestManager {
             case 0 -> "幹得好！史萊姆的威脅解除了！";
             case 1 -> "太厲害了！農田再也不用擔心了！";
             case 2 -> "你真正成為了冒險者！";
+            case 3 -> "你擊敗了葛羅芬！森林之心已奪回！";
+            case 4 -> "法拉歐已倒下！沙漠的詛咒解除了！";
             default -> "任務完成！";
         };
     }
@@ -173,6 +193,8 @@ public class QuestManager {
             case 0 -> "(500G + 紅藥×5)";
             case 1 -> "(1000G + 橙藥×3)";
             case 2 -> "(1500G + 萬能藥×2)";
+            case 3 -> "(3000G + 森之核心護符)";
+            case 4 -> "(6000G + 法老彎刀)";
             default -> "";
         };
     }
@@ -190,6 +212,14 @@ public class QuestManager {
             case 2 -> {
                 player.gainGold(1500);
                 for (int i = 0; i < 2; i++) player.getInventory().addConsumable(Consumable.elixir());
+            }
+            case 3 -> {
+                player.gainGold(3000);
+                player.getInventory().addEquipment(Equipment.forestCoreAmulet());
+            }
+            case 4 -> {
+                player.gainGold(6000);
+                player.getInventory().addEquipment(Equipment.pharaohCurvedSword());
             }
         }
     }

@@ -128,9 +128,10 @@ public class Monster {
 
         // 依種類執行不同更新
         switch (type) {
-            case SLIME, ICE_SLIME              -> updateSlime(dt, gameMap, player);
-            case BOAR,  POLAR_BEAR             -> updateBoar (dt, gameMap, player);
-            case BAT,   ICE_BAT                -> updateBat  (dt, gameMap, player);
+            case SLIME, ICE_SLIME                       -> updateSlime(dt, gameMap, player);
+            case BOAR,  POLAR_BEAR,
+                 VINE_SPIDER, DESERT_SCORPION           -> updateBoar (dt, gameMap, player);
+            case BAT,   ICE_BAT                         -> updateBat  (dt, gameMap, player);
         }
 
         // 地圖邊界
@@ -370,12 +371,14 @@ public class Monster {
         }
 
         switch (type) {
-            case SLIME      -> drawSlime(g, camera);
-            case BOAR       -> drawBoar (g, camera);
-            case BAT        -> drawBat  (g, camera);
-            case ICE_SLIME  -> drawIceSlime (g, camera);
-            case POLAR_BEAR -> drawPolarBear(g, camera);
-            case ICE_BAT    -> drawIceBat   (g, camera);
+            case SLIME           -> drawSlime       (g, camera);
+            case BOAR            -> drawBoar        (g, camera);
+            case BAT             -> drawBat         (g, camera);
+            case ICE_SLIME       -> drawIceSlime    (g, camera);
+            case POLAR_BEAR      -> drawPolarBear   (g, camera);
+            case ICE_BAT         -> drawIceBat      (g, camera);
+            case VINE_SPIDER     -> drawVineSpider  (g, camera);
+            case DESERT_SCORPION -> drawDesertScorpion(g, camera);
         }
 
         drawHpBar      (g, camera);
@@ -583,6 +586,141 @@ public class Monster {
         g.drawLine(cx - 3, cy + 5, cx - 3, cy + 8);
         g.drawLine(cx,     cy + 5, cx,     cy + 8);
         g.drawLine(cx + 3, cy + 5, cx + 3, cy + 8);
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    // ── 藤蔓蜘蛛 ─────────────────────────────────────────────
+    private void drawVineSpider(Graphics2D g, Camera camera) {
+        int sx = (int)(x - camera.getOffsetX());
+        int sy = (int)(y - camera.getOffsetY());
+        int cx = sx + width / 2;
+        int cy = sy + height / 2 + 4;
+
+        Color bodyColor = hurtTimer > 0 ? new Color(255, 100, 80) : new Color(40, 110, 30);
+        Color legColor  = new Color(55, 90, 20);
+
+        // 8 條腿（4 左 4 右，蜘蛛造型）
+        g.setColor(legColor);
+        g.setStroke(new BasicStroke(2f));
+        double legSwing = Math.sin(walkAnim) * 5;
+        int[][] legOffs = {{-18,-14},{-24,-4},{-22,8},{-16,18},
+                           { 18,-14},{ 24,-4},{ 22,8},{ 16,18}};
+        for (int i = 0; i < 8; i++) {
+            int lx = cx + legOffs[i][0];
+            int ly = cy + legOffs[i][1] + (i < 4 ? (int)legSwing : (int)-legSwing);
+            g.drawLine(cx + (i < 4 ? -8 : 8), cy, lx, ly);
+        }
+
+        // 腹部（大橢圓）
+        g.setColor(bodyColor);
+        g.fillOval(cx - 14, cy - 10, 28, 20);
+        g.setColor(bodyColor.darker());
+        g.drawOval(cx - 14, cy - 10, 28, 20);
+
+        // 頭部（小橢圓）
+        g.setColor(bodyColor);
+        g.fillOval(cx - 9, sy + 2, 18, 16);
+        g.setColor(bodyColor.darker());
+        g.drawOval(cx - 9, sy + 2, 18, 16);
+
+        // 4 顆眼睛（蜘蛛特色）
+        g.setColor(new Color(180, 255, 80));
+        g.fillOval(cx - 7, sy + 4,  5, 5);
+        g.fillOval(cx - 1, sy + 3,  5, 5);
+        g.fillOval(cx + 3, sy + 4,  5, 5);
+        g.fillOval(cx - 4, sy + 9,  4, 4);
+
+        // 毒牙（下方兩根）
+        g.setColor(new Color(80, 200, 40));
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawLine(cx - 4, sy + 17, cx - 6, sy + 22);
+        g.drawLine(cx + 4, sy + 17, cx + 6, sy + 22);
+
+        // 腹部花紋（Y 形）
+        g.setColor(new Color(60, 160, 40, 160));
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawLine(cx, cy - 8, cx, cy + 6);
+        g.drawLine(cx, cy, cx - 7, cy + 8);
+        g.drawLine(cx, cy, cx + 7, cy + 8);
+
+        g.setStroke(new BasicStroke(1f));
+    }
+
+    // ── 沙漠蠍 ───────────────────────────────────────────────
+    private void drawDesertScorpion(Graphics2D g, Camera camera) {
+        int sx = (int)(x - camera.getOffsetX());
+        int sy = (int)(y - camera.getOffsetY());
+        int cx = sx + width / 2;
+        int cy = sy + height / 2 + 4;
+        int dir = facingRight ? 1 : -1;
+
+        Color bodyColor = hurtTimer > 0 ? new Color(255, 160, 80) : new Color(180, 130, 40);
+        Color shellColor = new Color(150, 110, 35);
+
+        // 6 條步行腿
+        g.setColor(shellColor);
+        g.setStroke(new BasicStroke(2f));
+        double legSwing = Math.sin(walkAnim) * 4;
+        int[] legY = {-6, 2, 10};
+        for (int side = -1; side <= 1; side += 2) {
+            for (int i = 0; i < 3; i++) {
+                int lx = cx + side * (18 + i * 2);
+                int ly = cy + legY[i] + (int)(side * legSwing);
+                g.drawLine(cx + side * 8, cy + legY[i], lx, ly);
+                g.drawLine(lx, ly, lx + side * 6, ly + 8);
+            }
+        }
+
+        // 身體（分節甲殼）
+        g.setColor(bodyColor);
+        g.fillRoundRect(cx - 14, cy - 10, 28, 20, 6, 6);
+        g.setColor(shellColor);
+        g.setStroke(new BasicStroke(1f));
+        for (int seg = cy - 5; seg < cy + 12; seg += 6) {
+            g.drawLine(cx - 13, seg, cx + 13, seg);
+        }
+
+        // 頭部（前端小橢圓）
+        int headX = facingRight ? cx + 6 : cx - 20;
+        g.setColor(bodyColor);
+        g.fillOval(headX, cy - 8, 16, 16);
+        g.setColor(shellColor);
+        g.drawOval(headX, cy - 8, 16, 16);
+
+        // 蟹鉗（前方兩支）
+        int clawBase = facingRight ? cx + 20 : cx - 20;
+        g.setColor(bodyColor);
+        g.setStroke(new BasicStroke(2.5f));
+        int cSwing = (int)(Math.sin(idleTimer * 3) * 4);
+        g.drawLine(clawBase, cy - 4, clawBase + dir * 12, cy - 8 + cSwing);
+        g.drawLine(clawBase + dir * 12, cy - 8 + cSwing, clawBase + dir * 18, cy - 14 + cSwing);
+        g.drawLine(clawBase + dir * 12, cy - 8 + cSwing, clawBase + dir * 16, cy - 2 + cSwing);
+
+        g.drawLine(clawBase, cy + 4, clawBase + dir * 12, cy + 8 - cSwing);
+        g.drawLine(clawBase + dir * 12, cy + 8 - cSwing, clawBase + dir * 18, cy + 14 - cSwing);
+        g.drawLine(clawBase + dir * 12, cy + 8 - cSwing, clawBase + dir * 16, cy + 2 - cSwing);
+
+        // 蠍尾（彎曲刺尾，背向）
+        int tailBase = facingRight ? cx - 12 : cx + 12;
+        g.setColor(bodyColor);
+        g.setStroke(new BasicStroke(3f));
+        // 尾巴 3 節彎曲
+        int tx1 = tailBase - dir * 6, ty1 = cy - 14;
+        int tx2 = tailBase - dir * 2, ty2 = cy - 28;
+        int tx3 = tailBase + dir * 10, ty3 = cy - 32;
+        g.drawLine(tailBase, cy - 8, tx1, ty1);
+        g.drawLine(tx1, ty1, tx2, ty2);
+        g.drawLine(tx2, ty2, tx3, ty3);
+        // 毒刺
+        g.setColor(new Color(200, 80, 30));
+        g.setStroke(new BasicStroke(2f));
+        g.drawLine(tx3, ty3, tx3 + dir * 8, ty3 + 6);
+
+        // 眼睛（一對）
+        int eyeX = facingRight ? headX + 10 : headX + 2;
+        g.setColor(new Color(255, 60, 0));
+        g.fillOval(eyeX, cy - 4, 4, 4);
+
         g.setStroke(new BasicStroke(1f));
     }
 
@@ -856,9 +994,11 @@ public class Monster {
             case SLIME      -> new Color(0.3f, 1f,   0.4f, alpha);
             case BOAR       -> new Color(0.9f, 0.6f, 0.2f, alpha);
             case BAT        -> new Color(0.7f, 0.3f, 1.0f, alpha);
-            case ICE_SLIME  -> new Color(0.6f, 0.9f, 1.0f, alpha);
-            case POLAR_BEAR -> new Color(0.9f, 0.95f,1.0f, alpha);
-            case ICE_BAT    -> new Color(0.5f, 0.85f,1.0f, alpha);
+            case ICE_SLIME       -> new Color(0.6f, 0.9f, 1.0f, alpha);
+            case POLAR_BEAR      -> new Color(0.9f, 0.95f,1.0f, alpha);
+            case ICE_BAT         -> new Color(0.5f, 0.85f,1.0f, alpha);
+            case VINE_SPIDER     -> new Color(0.3f, 0.7f, 0.2f, alpha);
+            case DESERT_SCORPION -> new Color(0.9f, 0.7f, 0.2f, alpha);
         };
         g.setColor(c);
         g.setStroke(new BasicStroke(3f));
@@ -918,12 +1058,14 @@ public class Monster {
         // 消耗品掉落機率（依種類）
         double hpPot = 0, mpPot = 0;
         switch (type) {
-            case SLIME      -> { hpPot = 0.35; mpPot = 0.15; }
-            case BOAR       -> { hpPot = 0.45; mpPot = 0.10; }
-            case BAT        -> { hpPot = 0.20; mpPot = 0.30; }
-            case ICE_SLIME  -> { hpPot = 0.30; mpPot = 0.25; }
-            case POLAR_BEAR -> { hpPot = 0.50; mpPot = 0.15; }
-            case ICE_BAT    -> { hpPot = 0.20; mpPot = 0.35; }
+            case SLIME           -> { hpPot = 0.35; mpPot = 0.15; }
+            case BOAR            -> { hpPot = 0.45; mpPot = 0.10; }
+            case BAT             -> { hpPot = 0.20; mpPot = 0.30; }
+            case ICE_SLIME       -> { hpPot = 0.30; mpPot = 0.25; }
+            case POLAR_BEAR      -> { hpPot = 0.50; mpPot = 0.15; }
+            case ICE_BAT         -> { hpPot = 0.20; mpPot = 0.35; }
+            case VINE_SPIDER     -> { hpPot = 0.40; mpPot = 0.20; }
+            case DESERT_SCORPION -> { hpPot = 0.45; mpPot = 0.15; }
         }
         if (Math.random() < hpPot) {
             Consumable c = Math.random() < 0.25
@@ -940,10 +1082,12 @@ public class Monster {
 
         // 裝備掉落（低機率，依種類決定種類）
         double eqRate = switch (type) {
-            case SLIME, BAT   -> 0.05;
-            case BOAR         -> 0.08;
-            case ICE_SLIME, ICE_BAT -> 0.06;
-            case POLAR_BEAR   -> 0.12;
+            case SLIME, BAT          -> 0.05;
+            case BOAR                -> 0.08;
+            case ICE_SLIME, ICE_BAT  -> 0.06;
+            case POLAR_BEAR          -> 0.12;
+            case VINE_SPIDER         -> 0.10;
+            case DESERT_SCORPION     -> 0.12;
         };
         if (Math.random() < eqRate) {
             Equipment eq = rollEquipment();
@@ -956,11 +1100,13 @@ public class Monster {
     private Equipment rollEquipment() {
         double r = Math.random();
         return switch (type) {
-            case SLIME, ICE_SLIME -> r < 0.5 ? Equipment.noviceHelmet()   : Equipment.hempBoots();
-            case BOAR             -> r < 0.5 ? Equipment.leatherTop()      : Equipment.noviceHelmet();
-            case BAT, ICE_BAT     -> r < 0.5 ? Equipment.magicEarring()    : Equipment.hempGloves();
-            case POLAR_BEAR       -> r < 0.4 ? Equipment.reinforcedSword() :
-                                     r < 0.7 ? Equipment.steelCape()       : Equipment.leatherTop();
+            case SLIME, ICE_SLIME  -> r < 0.5 ? Equipment.noviceHelmet()   : Equipment.hempBoots();
+            case BOAR              -> r < 0.5 ? Equipment.leatherTop()      : Equipment.noviceHelmet();
+            case BAT, ICE_BAT      -> r < 0.5 ? Equipment.magicEarring()    : Equipment.hempGloves();
+            case POLAR_BEAR        -> r < 0.4 ? Equipment.reinforcedSword() :
+                                      r < 0.7 ? Equipment.steelCape()       : Equipment.leatherTop();
+            case VINE_SPIDER       -> r < 0.5 ? Equipment.jadeGloves()      : Equipment.jadeCape();
+            case DESERT_SCORPION   -> r < 0.5 ? Equipment.jadeHelmet()      : Equipment.jadeBoots();
         };
     }
 

@@ -94,6 +94,21 @@ public class Consumable {
     public static Consumable villageScrollIcePost() {
         return new Consumable("冰原驛站村莊卷軸", "傳送至冰原驛站正中央", ItemRarity.RARE, 0, 0, "VCENTER:icepost");
     }
+    // ── Boss 專屬消耗品 ───────────────────────────────────────
+
+    /** 古老森林精華：回復 60% 最大 HP（葛羅芬掉落） */
+    public static Consumable ancientForestEssence() {
+        return new Consumable("古老森林精華",
+            "回復大量 HP（依最大 HP 60% 計算）",
+            ItemRarity.EPIC, -1, 0, null); // hp=-1 代表百分比回復（apply 中特判）
+    }
+
+    /** 沙漠法老繃帶：回復 80% 最大 HP 並解除緩速狀態（法拉歐掉落） */
+    public static Consumable pharaohBandage() {
+        return new Consumable("沙漠法老繃帶",
+            "回復大量 HP 並解除所有負面狀態",
+            ItemRarity.EPIC, -2, 0, null); // hp=-2 代表 80% + 解除 debuff
+    }
     // ── 使用 ─────────────────────────────────────────────────
 
     /**
@@ -104,6 +119,18 @@ public class Consumable {
     public String apply(maplestory.entity.Player player) {
         if (teleportMapId != null) {
             return "TELEPORT:" + teleportMapId;
+        }
+        // Boss 專屬：百分比回復
+        if (hpRestore == -1) { // 古老森林精華：60% 最大 HP
+            int heal = (int)(player.getMaxHp() * 0.60);
+            int actual = player.healHp(heal);
+            return actual > 0 ? "+" + actual + " HP（森林精華）" : "HP 已滿";
+        }
+        if (hpRestore == -2) { // 沙漠法老繃帶：80% 最大 HP + 解除 debuff
+            int heal = (int)(player.getMaxHp() * 0.80);
+            int actual = player.healHp(heal);
+            player.clearDebuffs();
+            return actual > 0 ? "+" + actual + " HP + 解除異常狀態" : "HP 已滿（異常狀態已解除）";
         }
         StringBuilder sb = new StringBuilder();
         if (hpRestore > 0) {

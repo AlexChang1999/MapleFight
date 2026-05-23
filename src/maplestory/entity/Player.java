@@ -73,6 +73,10 @@ public class Player {
     private double slowTimer  = 0;
     private double slowFactor = 1.0; // 1.0=正常, <1.0=減速
 
+    // ── ATK 削弱（Boss 詛咒凝視用）───────────────────────────
+    private double atkDebuffTimer      = 0;
+    private double atkDebuffMultiplier = 1.0; // 1.0=正常, 0.75=削弱25%
+
     // ── 升級特效 ─────────────────────────────────────────────
     private double levelUpTimer = 0;
 
@@ -167,6 +171,7 @@ public class Player {
         idleTimer           += dt;
         timeSinceLastCombat += dt;
         if (slowTimer          > 0) { slowTimer    -= dt; if (slowTimer    <= 0) slowFactor = 1.0; }
+        if (atkDebuffTimer     > 0) { atkDebuffTimer -= dt; if (atkDebuffTimer <= 0) atkDebuffMultiplier = 1.0; }
         if (levelUpTimer       > 0)   levelUpTimer -= dt;
         if (hurtTimer          > 0)   hurtTimer    -= dt;
         if (ladderExitCooldown > 0)   ladderExitCooldown -= dt;
@@ -345,6 +350,47 @@ public class Player {
         slowTimer  = Math.max(slowTimer, duration);
         slowFactor = Math.min(slowFactor, factor);
     }
+
+    /** Boss 詛咒：套用 ATK 削弱狀態 */
+    public void applyAtkDebuff(double duration, double multiplier) {
+        atkDebuffTimer      = Math.max(atkDebuffTimer, duration);
+        atkDebuffMultiplier = Math.min(atkDebuffMultiplier, multiplier);
+    }
+
+    /** 解除所有負面狀態（法老繃帶使用時呼叫） */
+    public void clearDebuffs() {
+        slowTimer           = 0;
+        slowFactor          = 1.0;
+        atkDebuffTimer      = 0;
+        atkDebuffMultiplier = 1.0;
+    }
+
+    /**
+     * 取得玩家當前的攻擊傷害值（含裝備、套裝、職業加成與 debuff 減免）。
+     * 供 Boss 攻擊命中判斷使用。
+     */
+    public int getAttackDamage() {
+        int atkBonus = equipments.containsKey(EquipSlot.WEAPON)
+                       ? equipments.get(EquipSlot.WEAPON).getAtkBonus() : 0;
+        int setAtk   = getSetAtkBonus();
+        double hawkMult = 1.0;
+        if (job instanceof maplestory.job.Archer a) hawkMult = a.getDamageMultiplier();
+        return (int)((BASE_DAMAGE + str * 2 + atkBonus + setAtk) * hawkMult * atkDebuffMultiplier);
+    }
+
+    /**
+     * 回傳玩家當前揮擊的攻擊碰撞箱（僅在揮擊有效幀內才回傳，否則回傳 null）。
+     * 供 GamePanel 進行 Boss 命中判斷。
+     */
+    public Rectangle getAttackBox() {
+        if (!isInStrikePhase()) return null;
+        int atkX = facingRight ? (int) x + WIDTH : (int) x - ATTACK_RANGE;
+        return new Rectangle(atkX, (int) y, ATTACK_RANGE, HEIGHT);
+    }
+
+    /** 是否處於 ATK 削弱狀態（HUD 顯示 debuff 圖示用） */
+    public boolean isAtkDebuffed()   { return atkDebuffTimer > 0; }
+    public double  getAtkDebuffTimer() { return atkDebuffTimer; }
 
     /** 攻擊進度比例 0.0（剛開始）~ 1.0（結束） */
     private double attackProgress() {

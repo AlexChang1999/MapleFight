@@ -11,7 +11,7 @@ import maplestory.entity.MonsterType;
 public class Quest {
 
     public enum State { NOT_STARTED, IN_PROGRESS, COMPLETED }
-    public enum Type  { KILL, VISIT }
+    public enum Type  { KILL, VISIT, BOSS_KILL }
 
     public final int         id;
     public final String      title;
@@ -23,7 +23,10 @@ public class Quest {
     public final int         targetCount;
 
     // VISIT quest 欄位
-    public final String      targetMapId;   // null for KILL quests
+    public final String      targetMapId;   // null for KILL / BOSS_KILL quests
+
+    // BOSS_KILL quest 欄位
+    public final String      bossId;        // null for KILL / VISIT quests
 
     private State state    = State.NOT_STARTED;
     private int   progress = 0; // 擊殺數 / VISIT 則 0 或 1
@@ -38,6 +41,7 @@ public class Quest {
         this.targetMonster = monster;
         this.targetCount   = count;
         this.targetMapId   = null;
+        this.bossId        = null;
     }
 
     // ── VISIT 任務建構子 ──────────────────────────────────────
@@ -49,6 +53,19 @@ public class Quest {
         this.targetMonster = null;
         this.targetCount   = 1;
         this.targetMapId   = mapId;
+        this.bossId        = null;
+    }
+
+    // ── BOSS_KILL 任務建構子 ──────────────────────────────────
+    public Quest(int id, String title, String desc, String bossId, boolean isBoss) {
+        this.id            = id;
+        this.title         = title;
+        this.description   = desc;
+        this.type          = Type.BOSS_KILL;
+        this.targetMonster = null;
+        this.targetCount   = 1;
+        this.targetMapId   = null;
+        this.bossId        = bossId;
     }
 
     // ── 進度更新 ─────────────────────────────────────────────
@@ -60,6 +77,14 @@ public class Quest {
         if (killed != targetMonster)    return false;
         if (progress < targetCount) progress++;
         return progress >= targetCount;
+    }
+
+    /** Boss 擊殺通知。回傳 true 表示任務可以完成了。 */
+    public boolean onBossKilled(String killedBossId) {
+        if (state != State.IN_PROGRESS) return false;
+        if (type  != Type.BOSS_KILL)    return false;
+        if (bossId.equals(killedBossId)) { progress = 1; return true; }
+        return false;
     }
 
     /** 進入地圖通知。回傳 true 表示任務可以完成了。 */

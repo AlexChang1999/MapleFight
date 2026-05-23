@@ -84,7 +84,7 @@ public class IcePostTown extends BaseMap {
         // 左側 → 冒險平原（無限制）
         portals.add(new Portal(
             22, GROUND_Y - Portal.HEIGHT,
-            "battle", GameMap.MAP_WIDTH - 68, GROUND_Y - 80,
+            "battle", GameMap.MAP_WIDTH - 130, GROUND_Y - 80,
             "回冒險平原", 1
         ));
         // 右側 → 極地冰原（Lv.15）

@@ -43,8 +43,15 @@ public class ArcticMap extends BaseMap {
         int gY = GamePanel.GAME_HEIGHT - 40;
         portals.add(new Portal(
             30, gY - Portal.HEIGHT,
-            "icepost", IcePostTown.MAP_WIDTH - 68, gY - 80,
+            "icepost", IcePostTown.MAP_WIDTH - 130, gY - 80,
             "回冰原驛站", 1
+        ));
+
+        // 右側傳送門 → 前往古老森林（需 Lv20）
+        portals.add(new Portal(
+            MAP_WIDTH - 68, gY - Portal.HEIGHT,
+            "forest", 60, gY - 80,
+            "前往古老森林", 20
         ));
     }
 
@@ -57,12 +64,9 @@ public class ArcticMap extends BaseMap {
         int midY = gY - 130;                   // 中層 Y
         int hiY  = gY - 270;                   // 高層 Y
 
-        // ── 冰地面（三段，淡藍色）─────────────────────────────
+        // ── 冰地面（整段，淡藍色）─────────────────────────────
         Color iceGround = new Color(160, 210, 240);
-        platforms.add(new Platform(   0, gY, 560, 40, iceGround));
-        platforms.add(new Platform( 600, gY, 700, 40, new Color(150, 200, 235)));
-        platforms.add(new Platform(1360, gY, 500, 40, iceGround));
-        platforms.add(new Platform(1920, gY, 480, 40, new Color(150, 200, 235)));
+        platforms.add(new Platform(0, gY, MAP_WIDTH, 40, iceGround));
 
         // ── 中層浮台（冰磚感，深藍） ──────────────────────────
         Color iceMid = new Color(100, 170, 220);
@@ -95,9 +99,9 @@ public class ArcticMap extends BaseMap {
         ladders.add(new Ladder(2050, midY, gY,        icePost, iceRung));
 
         // 中層 → 高層
-        ladders.add(new Ladder(430,  hiY, midY - 28, icePost, iceRung));
+        ladders.add(new Ladder(510,  hiY, midY - 30, icePost, iceRung));
         ladders.add(new Ladder(1060, hiY, midY - 30, icePost, iceRung));
-        ladders.add(new Ladder(1660, hiY, midY - 28, icePost, iceRung));
+        ladders.add(new Ladder(1660, hiY, midY - 30, icePost, iceRung));
         ladders.add(new Ladder(2180, hiY, midY - 30, icePost, iceRung));
     }
 

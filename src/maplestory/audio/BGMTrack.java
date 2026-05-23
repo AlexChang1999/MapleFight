@@ -12,7 +12,7 @@ import javax.sound.midi.*;
  */
 public enum BGMTrack {
 
-    VILLAGE, NOVICE, BATTLE, ARCTIC, FRONTIER, ICEPOST;
+    VILLAGE, NOVICE, BATTLE, ARCTIC, FRONTIER, ICEPOST, FOREST, DESERT;
 
     // ── MIDI 時值常數（PPQ=480）───────────────────────────────
     private static final int PPQ = 480;
@@ -62,6 +62,8 @@ public enum BGMTrack {
             case "arctic"                        -> ARCTIC;
             case "frontier"                      -> FRONTIER;
             case "icepost"                       -> ICEPOST;
+            case "forest"                        -> FOREST;
+            case "desert"                        -> DESERT;
             default                              -> VILLAGE;
         };
     }
@@ -74,6 +76,8 @@ public enum BGMTrack {
             case ARCTIC   -> buildArctic();
             case FRONTIER -> buildFrontier();
             case ICEPOST  -> buildIcePost();
+            case FOREST   -> buildForest();
+            case DESERT   -> buildDesert();
         };
     }
 
@@ -610,6 +614,185 @@ public enum BGMTrack {
         int[] bNotes = {35, 31, 26, 33, 28, 30, 31, 35}; // B1 G1 D1 A1 E1 F#1 G1 B1
         for (int b = 0; b < 8; b++) {
             addNote(bas, 3, bNotes[b], b * BAR, DQ2 - 20, 50);
+        }
+
+        return seq;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // FOREST — "踏入永夜的森林"
+    // C小調 · 96 BPM · 8小節循環
+    // 長笛旋律如穿越林間的風，時而消隱在沉重的弦樂之間。
+    // 豎琴稀疏分解和弦，描繪古老森林的神秘與危險。
+    // ═══════════════════════════════════════════════════════════
+    private static Sequence buildForest() throws InvalidMidiDataException {
+        Sequence seq = new Sequence(Sequence.PPQ, PPQ);
+        addTempo(seq.createTrack(), 96);
+
+        // C小調音符：C=60 D=62 Eb=63 F=65 G=67 Ab=68 Bb=70 C5=72
+        //            D5=74 Eb5=75 F5=77 G5=79 Ab5=80 Bb5=82 C6=84
+
+        // ── ch0 長笛主旋律（飄渺、探索、帶著陰影）───────────────
+        Track mel = seq.createTrack();
+        setProgram(mel, 0, FLUTE);
+        setVolume(mel, 0, 82);
+        int t = 0;
+        // 小節1: G5(Q) Ab5(Q) Bb5(H) — 上行，踏入未知
+        t = notes(mel, 0, t, 72,  79,Q, 80,Q, 82,H);
+        // 小節2: C6(H) Bb5(H) — 到達高點後沉落
+        t = notes(mel, 0, t, 72,  84,H, 82,H);
+        // 小節3: Ab5(Q) G5(Q) F5(Q) Eb5(Q) — 下行，步入深林
+        t = notes(mel, 0, t, 68,  80,Q, 79,Q, 77,Q, 75,Q);
+        // 小節4: G5(W) — 長音，深林靜默
+        t = notes(mel, 0, t, 70,  79,W);
+        // 小節5: Eb5(Q) F5(Q) G5(Q) Ab5(Q) — 再度攀升
+        t = notes(mel, 0, t, 72,  75,Q, 77,Q, 79,Q, 80,Q);
+        // 小節6: Bb5(H) G5(H) — 高低迴盪
+        t = notes(mel, 0, t, 72,  82,H, 79,H);
+        // 小節7: Ab5(E) G5(E) F5(Q) Eb5(Q) D5(Q) — 快速下行
+        t = notes(mel, 0, t, 68,  80,E, 79,E, 77,Q, 75,Q, 74,Q);
+        // 小節8: C5(H) G4(H) — 回根音
+        notes(mel, 0, t, 70,  72,H, 67,H);
+
+        // ── ch1 豎琴稀疏分解和弦（沉重感，每拍一音）─────────────
+        Track hrp = seq.createTrack();
+        setProgram(hrp, 1, HARP);
+        setVolume(hrp, 1, 48);
+        // Cm - Ab - Eb - G (自然小調混入)
+        int[][] harpPat = {
+            {48, 51, 55, 60},  // Cm: C3 Eb3 G3 C4
+            {44, 48, 51, 56},  // Ab: Ab2 C3 Eb3 Ab3
+            {51, 55, 58, 63},  // Eb: Eb3 G3 Bb3 Eb4
+            {43, 47, 50, 55},  // G:  G2 B2 D3 G3
+            {48, 51, 55, 60},  // Cm
+            {44, 48, 51, 56},  // Ab
+            {46, 50, 53, 58},  // Bb: Bb2 D3 F3 Bb3
+            {48, 51, 55, 60}   // Cm
+        };
+        for (int b = 0; b < 8; b++) {
+            for (int i = 0; i < 4; i++) {
+                addNote(hrp, 1, harpPat[b][i], b * W + i * Q, Q - 20, 40);
+            }
+        }
+
+        // ── ch2 震音弦樂墊（陰森低沉，塑造緊張感）──────────────
+        Track str = seq.createTrack();
+        setProgram(str, 2, TREMOLO_STR);
+        setVolume(str, 2, 30);
+        // Cm - Ab - Eb - Gm 四組，每兩小節一換
+        int[][] pads = {
+            {36, 39, 43},  // Cm: C2 Eb2 G2
+            {32, 36, 39},  // Ab: Ab1 C2 Eb2
+            {39, 43, 46},  // Eb: Eb2 G2 Bb2
+            {31, 35, 38},  // Gm: G1 B1 D2
+        };
+        for (int g = 0; g < 4; g++) {
+            int tick = g * 2 * W;
+            for (int n : pads[g]) addNote(str, 2, n, tick, 2 * W - 30, 24);
+        }
+
+        // ── ch3 原聲貝斯（沉重根音，每小節一音）─────────────────
+        Track bas = seq.createTrack();
+        setProgram(bas, 3, BASS_ACOUSTIC);
+        setVolume(bas, 3, 62);
+        int[] bNotes = {36, 32, 39, 43, 36, 32, 34, 36}; // C2 Ab1 Eb2 G2 C2 Ab1 Bb1 C2
+        for (int b = 0; b < 8; b++) {
+            addNote(bas, 3, bNotes[b], b * W, DH - 20, 55);
+        }
+
+        return seq;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // DESERT — "廢墟中的永恆"
+    // D小調 · 108 BPM · 8小節循環
+    // 小提琴奏出帶裝飾音的中東風格旋律，暗示古老文明的神秘。
+    // 沙槌感鼓組（以踩鑔模擬）增強地域色彩，低沉弦樂填充空間。
+    // ═══════════════════════════════════════════════════════════
+    private static Sequence buildDesert() throws InvalidMidiDataException {
+        Sequence seq = new Sequence(Sequence.PPQ, PPQ);
+        addTempo(seq.createTrack(), 108);
+
+        // D小調音符: D4=62 E4=64 F4=65 G4=67 A4=69 Bb4=70 C5=72
+        //            D5=74 E5=76 F5=77 G5=79 A5=81 Bb5=82 C6=84 D6=86
+
+        // ── ch0 小提琴主旋律（中東風格裝飾音）──────────────────
+        Track mel = seq.createTrack();
+        setProgram(mel, 0, VIOLIN);
+        setVolume(mel, 0, 90);
+        int t = 0;
+        // 小節1: A5(Q) Bb5(E) A5(E) G5(Q) F5(Q) — 裝飾音上下繞行
+        t = notes(mel, 0, t, 85,  81,Q, 82,E, 81,E, 79,Q, 77,Q);
+        // 小節2: E5(H) D5(H) — 收斂下行
+        t = notes(mel, 0, t, 80,  76,H, 74,H);
+        // 小節3: F5(Q) G5(Q) A5(Q) C6(Q) — 上行，帶著威嚴感
+        t = notes(mel, 0, t, 85,  77,Q, 79,Q, 81,Q, 84,Q);
+        // 小節4: Bb5(H) A5(H) — 到達高點，稍作停留
+        t = notes(mel, 0, t, 82,  82,H, 81,H);
+        // 小節5: A5(Q) G5(Q) F5(Q) E5(Q) — 穩步下行
+        t = notes(mel, 0, t, 80,  81,Q, 79,Q, 77,Q, 76,Q);
+        // 小節6: D5(DH) C5(Q) — 長音加附點，儀式感
+        t = notes(mel, 0, t, 78,  74,DH, 72,Q);
+        // 小節7: Bb4(Q) C5(Q) D5(Q) E5(Q) — 八分上行準備再循環
+        t = notes(mel, 0, t, 82,  70,Q, 72,Q, 74,Q, 76,Q);
+        // 小節8: A4(W) — 歸根，等待再出發
+        notes(mel, 0, t, 78,  69,W);
+
+        // ── ch1 長笛副旋律（在主旋律靜默處填充）────────────────
+        Track fl = seq.createTrack();
+        setProgram(fl, 1, FLUTE);
+        setVolume(fl, 1, 52);
+        int tf = W; // 第2小節才加入
+        tf = notes(fl, 1, tf, 52,  67,Q, 65,Q, 67,Q, 69,Q);          // bar2
+        tf = notes(fl, 1, tf, 52,  70,H, 69,H);                       // bar3
+        tf = notes(fl, 1, tf, 52,  77,Q, 74,Q, 72,Q, 70,Q);          // bar4
+        tf = notes(fl, 1, tf, 52,  69,H, 65,H);                       // bar5
+        tf = notes(fl, 1, tf, 52,  74,E, 72,E, 70,Q, 69,Q, 67,Q);    // bar6
+        tf = notes(fl, 1, tf, 52,  65,H, 62,H);                       // bar7
+        notes(fl, 1, tf, 52,  64,W);                                   // bar8
+
+        // ── ch2 弦樂墊（古樸莊嚴感）─────────────────────────────
+        Track str = seq.createTrack();
+        setProgram(str, 2, STRINGS);
+        setVolume(str, 2, 36);
+        // Dm - Bb - C - Am 進行
+        int[][][] prog = {
+            {{38, 41, 45}}, {{34, 38, 41}}, {{36, 40, 43}}, {{33, 36, 40}},
+            {{38, 41, 45}}, {{34, 38, 41}}, {{36, 40, 43}}, {{38, 41, 45}}
+        };
+        for (int b = 0; b < 8; b++) {
+            for (int n : prog[b][0]) addNote(str, 2, n, b * W, W - 25, 30);
+        }
+
+        // ── ch9 打擊組（沙漠鼓感：踩鑔模擬沙槌 + 大鼓穩拍）──────
+        Track drm = seq.createTrack();
+        setVolume(drm, 9, 80);
+        for (int b = 0; b < 8; b++) {
+            int bt = b * W;
+            // 大鼓：1拍、3拍
+            addNote(drm, 9, KICK,  bt,      S - 5, 90);
+            addNote(drm, 9, KICK,  bt + H,  S - 5, 80);
+            // 小鼓：2拍、4拍（沙漠節奏變化）
+            addNote(drm, 9, SNARE, bt + Q,        S - 5, 72);
+            addNote(drm, 9, SNARE, bt + H + Q,    S - 5, 68);
+            // 踩鑔（沙槌感，每八分音符，奇偶交替音量）
+            for (int i = 0; i < 8; i++) {
+                addNote(drm, 9, RIDE, bt + i * E, S - 5, i % 2 == 0 ? 55 : 38);
+            }
+        }
+
+        // ── ch3 電貝斯（低沉走動）────────────────────────────────
+        Track bas = seq.createTrack();
+        setProgram(bas, 3, BASS_ELECTRIC);
+        setVolume(bas, 3, 78);
+        int[] bRoots = {38, 34, 36, 33, 38, 34, 36, 38}; // D2 Bb1 C2 A1 D2 Bb1 C2 D2
+        for (int b = 0; b < 8; b++) {
+            int bt   = b * W;
+            int root = bRoots[b];
+            addNote(bas, 3, root,      bt,          E - 10, 80);
+            addNote(bas, 3, root + 7,  bt + E,      E - 10, 65);
+            addNote(bas, 3, root,      bt + H,      E - 10, 75);
+            addNote(bas, 3, root + 5,  bt + H + Q,  Q - 15, 58);
         }
 
         return seq;
