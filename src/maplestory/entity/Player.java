@@ -506,9 +506,13 @@ public class Player {
         int sx = (int)(x - camera.getOffsetX());
         int sy = (int)(y - camera.getOffsetY());
 
-        // 靜待呼吸偏移
+        // 靜待呼吸偏移：頭部比身體晚 0.3 弧度（彈性擠壓感）
+        int bodySy = sy;
+        int headSy = sy;
         if (velX == 0 && onGround && !attacking && !onLadder) {
-            sy += (int)(Math.sin(idleTimer * 1.6) * 2.0);
+            double bobPhase = idleTimer * 1.6;
+            bodySy = sy + (int)(Math.sin(bobPhase)        * 2.0);
+            headSy = sy + (int)(Math.sin(bobPhase - 0.30) * 2.0);
         }
 
         // 升級 / 轉職光效（金色光環）
@@ -550,48 +554,24 @@ public class Player {
         Equipment capeEq    = equip(EquipSlot.CAPE);
         Equipment earringEq = equip(EquipSlot.EARRING);
 
-        Color topColor    = topEq    != null ? topEq.getDisplayColor()    : new Color(190, 190, 210);
-        Color bottomColor = bottomEq != null ? bottomEq.getDisplayColor() : new Color(130, 130, 170);
-        Color gloveColor  = gloveEq  != null ? gloveEq.getDisplayColor()  : new Color(210, 180, 130);
-        Color bootColor   = bootEq   != null ? bootEq.getDisplayColor()   : new Color(150, 110, 75);
+        // drawLayered() resolves Equipment colours internally; only keep what drawArms() needs
+        Color topColor   = topEq   != null ? topEq.getDisplayColor()   : new Color(190, 190, 210);
+        Color gloveColor = gloveEq != null ? gloveEq.getDisplayColor() : new Color(210, 180, 130);
 
         int legSwing = onGround && !attacking ? (int)(Math.sin(walkAnim) * 10) : 0;
 
-        // ── 抗鋸齒開啟（楓之谷風格關鍵）────────────────────────
-        CharacterSprite.enableAA(g);
+        // ── 手臂（先畫 — drawLayered 的 body 層覆蓋肩關節，呈現自然袖口感）─
+        drawArms(g, cx, bodySy, topColor, gloveColor);
 
-        // ── 披風（身體後方最先畫）────────────────────────────
-        if (capeEq != null)
-            CharacterSprite.drawCape(g, cx, sy, capeEq.getDisplayColor(), facingRight);
-
-        // ── 身體（上衣，22px 寬含黑邊）──────────────────────
-        CharacterSprite.drawBody(g, cx, sy, topColor);
-
-        // ── 手臂（含連擊動畫，保留在 Player 因為有複雜攻擊狀態）
-        drawArms(g, cx, sy, topColor, gloveColor);
-
-        // ── 腿（黑邊輪廓 + 褲色）────────────────────────────
-        CharacterSprite.drawLegs(g, cx, sy, bottomColor, legSwing);
-
-        // ── 靴子（梯形 + 黑邊）──────────────────────────────
-        CharacterSprite.drawBoots(g, cx, sy, bootColor, legSwing, facingRight);
-
-        // ── 頭（26×28 圓角矩形，楓之谷方臉感）───────────────
-        CharacterSprite.drawHead(g, cx, sy, appearance, facingRight);
-
-        // ── 髮型（頭盔蓋在髮型上，先畫髮型）────────────────
-        CharacterSprite.drawHair(g, cx, sy, appearance, facingRight);
-
-        // ── 頭盔（蓋在髮型上）───────────────────────────────
-        if (helmetEq != null)
-            CharacterSprite.drawHelmet(g, cx, sy, helmetEq.getDisplayColor());
-
-        // ── 耳環 ────────────────────────────────────────────
-        if (earringEq != null)
-            CharacterSprite.drawEarring(g, cx, sy, earringEq.getDisplayColor(), facingRight);
-
-        // ── 臉部（眉毛 + 眼睛 + 嘴，最上層）────────────────
-        CharacterSprite.drawFace(g, cx, sy, appearance, facingRight, attacking, hurtTimer);
+        // ── 分層 Sprite 合成（PNG 優先，無資源自動降回 Graphics2D）──────────
+        // 順序：L0 後髮 → L1 披風 → L2 身體/上衣 → L3 腿+靴
+        //       → L4 頭部皮膚 → L5 臉部表情 → L6 前髮 → L7 頭盔 → L8 耳環
+        CharacterSprite.drawLayered(
+                g, cx, bodySy, headSy, HEIGHT,
+                appearance, facingRight,
+                topEq, bottomEq, bootEq, gloveEq,
+                helmetEq, earringEq, capeEq,
+                attacking, hurtTimer, legSwing);
 
         // ── 角色名稱（腳下 4px，黑邊白字）────────────────────
         g.setFont(new Font("Microsoft JhengHei", Font.BOLD, 11));
@@ -606,360 +586,6 @@ public class Player {
         g.drawString(name, nameX, nameY);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 外觀繪製已全數遷移至 CharacterSprite.java
-    // ═══════════════════════════════════════════════════════════
-
-    /**
-     * ── 以下舊方法已移至 CharacterSprite.java，保留空方法避免編譯錯誤 ──
-     * @deprecated 請改用 CharacterSprite.drawHead()
-     */
-    @Deprecated
-    private void drawHead(Graphics2D g, int cx, int sy) {
-        Color skin    = appearance.skinColor;
-        Color outline = new Color(
-            Math.max(0, skin.getRed()   - 50),
-            Math.max(0, skin.getGreen() - 60),
-            Math.max(0, skin.getBlue()  - 55));
-
-        // 臉側陰影（增加立體感）
-        int shadowDir = facingRight ? -1 : 1;
-        g.setColor(new Color(
-            Math.max(0, skin.getRed()   - 18),
-            Math.max(0, skin.getGreen() - 22),
-            Math.max(0, skin.getBlue()  - 18), 90));
-        g.fillOval(cx - 11 + shadowDir * 6, sy + 4, 11, 18);
-
-        // 主頭部
-        g.setColor(skin);
-        g.fillOval(cx - 11, sy, 22, 24);
-
-        // 輪廓
-        g.setColor(outline);
-        g.setStroke(new BasicStroke(1.5f));
-        g.drawOval(cx - 11, sy, 22, 24);
-        g.setStroke(new BasicStroke(2.2f));
-
-        // 臉頰紅暈
-        int blushX = facingRight ? cx + 2 : cx - 11;
-        g.setColor(new Color(255, 150, 130, 55));
-        g.fillOval(blushX, sy + 15, 9, 5);
-    }
-
-    /**
-     * 髮型：根據 appearance.hairStyle 選擇繪製方式。
-     * 繪製順序：頭部之後、頭盔之前（頭盔蓋在髮頂）。
-     * 新增髮型：在 HairStyle enum 加值 → 在此加 case 即可。
-     */
-    private void drawHair(Graphics2D g, int cx, int sy) {
-        Color hc  = appearance.hairColor;
-        Color hcd = new Color(
-            Math.max(0, hc.getRed()   - 30),
-            Math.max(0, hc.getGreen() - 30),
-            Math.max(0, hc.getBlue()  - 30));
-
-        switch (appearance.hairStyle) {
-            case SPIKY    -> drawHairSpiky   (g, cx, sy, hc, hcd);
-            case SHORT    -> drawHairShort   (g, cx, sy, hc, hcd);
-            case STRAIGHT -> drawHairStraight(g, cx, sy, hc, hcd);
-            case BOWL     -> drawHairBowl    (g, cx, sy, hc, hcd);
-            case LONG     -> drawHairLong    (g, cx, sy, hc, hcd);
-        }
-    }
-
-    /** 刺刺頭：三根高低錯落的尖刺 + 後腦髮絲 */
-    private void drawHairSpiky(Graphics2D g, int cx, int sy, Color hc, Color hcd) {
-        g.setStroke(new BasicStroke(1f));
-        // 髮根底座（覆蓋額頭上方）
-        g.setColor(hc);
-        g.fillArc(cx - 11, sy - 2, 22, 16, 0, 180);
-
-        // 三根向上尖刺（左、中、右，高低錯落）
-        int[][] spikes = {
-            {cx - 10, sy + 3,  cx - 5, sy - 13, cx - 1, sy + 2},  // 左刺
-            {cx -  3, sy + 1,  cx + 1, sy - 16, cx + 5, sy + 1},  // 中刺（最高）
-            {cx +  3, sy + 3,  cx + 9, sy - 10, cx + 11, sy + 3}  // 右刺
-        };
-        for (int[] s : spikes) {
-            g.setColor(hc);
-            g.fillPolygon(new int[]{s[0], s[2], s[4]}, new int[]{s[1], s[3], s[5]}, 3);
-            g.setColor(hcd);
-            g.drawPolygon(new int[]{s[0], s[2], s[4]}, new int[]{s[1], s[3], s[5]}, 3);
-        }
-
-        // 後腦側髮絲
-        int backX = facingRight ? cx - 11 : cx + 11;
-        int d     = facingRight ? -1 : 1;
-        g.setColor(hc);
-        g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawLine(backX, sy + 5, backX + d * 5, sy + 13);
-        g.setStroke(new BasicStroke(1f));
-    }
-
-    /** 短刺頭：兩根矮刺 + 低矮髮根 */
-    private void drawHairShort(Graphics2D g, int cx, int sy, Color hc, Color hcd) {
-        g.setStroke(new BasicStroke(1f));
-        g.setColor(hc);
-        g.fillArc(cx - 11, sy - 1, 22, 16, 0, 180);
-
-        int[][] spikes = {
-            {cx - 9, sy + 3, cx - 4, sy - 8, cx, sy + 2},
-            {cx + 1, sy + 2, cx + 6, sy - 7, cx + 10, sy + 3}
-        };
-        for (int[] s : spikes) {
-            g.setColor(hc);
-            g.fillPolygon(new int[]{s[0], s[2], s[4]}, new int[]{s[1], s[3], s[5]}, 3);
-            g.setColor(hcd);
-            g.drawPolygon(new int[]{s[0], s[2], s[4]}, new int[]{s[1], s[3], s[5]}, 3);
-        }
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
-    /** 直髮蓋額：圓頂 + 兩側垂髮 + 瀏海遮額 */
-    private void drawHairStraight(Graphics2D g, int cx, int sy, Color hc, Color hcd) {
-        g.setStroke(new BasicStroke(1f));
-        g.setColor(hc);
-        // 頭頂圓弧
-        g.fillArc(cx - 12, sy - 3, 24, 18, 0, 180);
-        // 兩側垂髮（到頸部位置）
-        g.fillRect(cx - 13, sy + 5, 7, 16);
-        g.fillRect(cx +  6, sy + 5, 7, 16);
-        // 瀏海（遮住額頭上半段，朝面向側偏移）
-        int fringeX = facingRight ? cx - 10 : cx + 2;
-        g.fillRoundRect(fringeX, sy + 7, 8, 9, 3, 3);
-        // 輪廓線
-        g.setColor(hcd);
-        g.drawLine(cx - 13, sy + 5, cx - 13, sy + 21);
-        g.drawLine(cx + 13, sy + 5, cx + 13, sy + 21);
-        g.drawArc(cx - 12, sy - 3, 24, 18, 0, 180);
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
-    /** 西瓜頭：厚碗狀覆蓋，底部切齊 */
-    private void drawHairBowl(Graphics2D g, int cx, int sy, Color hc, Color hcd) {
-        g.setStroke(new BasicStroke(1f));
-        g.setColor(hc);
-        g.fillArc(cx - 12, sy - 3, 24, 24, 0, 180);
-        g.fillRect(cx - 12, sy + 8, 24, 5);   // 底部平切
-        g.setColor(hcd);
-        g.drawArc(cx - 12, sy - 3, 24, 24, 0, 180);
-        g.drawLine(cx - 12, sy + 13, cx + 12, sy + 13);
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
-    /** 長髮：圓頂 + 長側發垂至肩膀（蓋住上衣肩部） */
-    private void drawHairLong(Graphics2D g, int cx, int sy, Color hc, Color hcd) {
-        g.setStroke(new BasicStroke(1f));
-        g.setColor(hc);
-        // 頭頂
-        g.fillArc(cx - 12, sy - 3, 24, 18, 0, 180);
-        // 兩側長髮垂到 sy+38（肩膀）
-        g.fillRect(cx - 13, sy + 5, 7, 33);
-        g.fillRect(cx +  6, sy + 5, 7, 33);
-        // 瀏海
-        int fringeX = facingRight ? cx - 10 : cx + 2;
-        g.fillRoundRect(fringeX, sy + 7, 8, 9, 3, 3);
-        // 輪廓
-        g.setColor(hcd);
-        g.drawLine(cx - 13, sy + 5,  cx - 13, sy + 38);
-        g.drawLine(cx + 13, sy + 5,  cx + 13, sy + 38);
-        g.drawLine(cx - 13, sy + 38, cx - 6,  sy + 38);
-        g.drawLine(cx + 13, sy + 38, cx + 6,  sy + 38);
-        g.drawArc(cx - 12, sy - 3, 24, 18, 0, 180);
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
-    /**
-     * 臉部：根據角色狀態（正常 / 攻擊 / 受傷）切換表情。
-     * 所有表情都會呼叫 drawEyebrow，正常狀態呼叫 drawNormalEye。
-     */
-    private void drawFace(Graphics2D g, int cx, int sy) {
-        // eyeDir：決定眼睛水平偏移（臉朝右則眼偏右，反之亦然）
-        int eyeDir = facingRight ? 4 : -4;
-        int ex = cx + eyeDir;  // 眼睛錨點 x
-        int ey = sy + 9;       // 眼睛頂部 y
-
-        if (hurtTimer > 0) {
-            // ── 受傷：X 字眼 + 紅色下彎嘴 + 下垂眉 ────────────
-            drawEyebrow(g, cx, sy, ex, true, false);
-            g.setColor(new Color(50, 20, 10));
-            g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g.drawLine(ex - 3, ey,     ex + 3, ey + 5);
-            g.drawLine(ex - 3, ey + 5, ex + 3, ey);
-            g.setColor(new Color(190, 30, 30));
-            g.setStroke(new BasicStroke(1.5f));
-            g.drawArc(cx - 3, sy + 18, 7, 5, 0, -180);
-
-        } else if (attacking) {
-            // ── 攻擊：銳利縮瞳 + 咬牙 + 皺眉 ──────────────────
-            drawEyebrow(g, cx, sy, ex, false, true);
-            g.setColor(Color.WHITE);
-            g.fillOval(ex - 4, ey + 2, 9, 5);           // 眼白（橫向壓扁）
-            g.setColor(appearance.eyeColor.darker());
-            g.fillOval(ex - 2, ey + 3, 5, 3);           // 虹膜
-            g.setColor(new Color(15, 8, 3));
-            g.fillOval(ex - 1, ey + 3, 3, 2);           // 瞳孔
-            g.setColor(new Color(30, 15, 5));
-            g.setStroke(new BasicStroke(1f));
-            g.drawOval(ex - 4, ey + 2, 9, 5);           // 眼線
-            g.setColor(new Color(80, 40, 20));
-            g.setStroke(new BasicStroke(1.5f));
-            g.drawLine(cx - 2, sy + 19, cx + 2, sy + 19); // 咬牙
-
-        } else {
-            // ── 正常：完整大眼 + 眉毛 + 微笑 ───────────────────
-            drawEyebrow(g, cx, sy, ex, false, false);
-            drawNormalEye(g, ex, ey);
-            g.setColor(new Color(130, 65, 45));
-            g.setStroke(new BasicStroke(1.5f));
-            g.drawArc(cx - 3, sy + 18, 7, 4, 0, 180);  // 微笑
-        }
-
-        g.setStroke(new BasicStroke(1f));
-    }
-
-    /**
-     * 正常狀態眼睛：根據 eyeStyle 決定高光數量與形狀。
-     * 楓之谷特色：眼白 → 虹膜 → 瞳孔 → 高光層 → 眼線。
-     */
-    private void drawNormalEye(Graphics2D g, int ex, int ey) {
-        // 眼白
-        g.setColor(Color.WHITE);
-        g.fillOval(ex - 4, ey, 9, 9);
-        // 虹膜（眼睛顏色）
-        g.setColor(appearance.eyeColor);
-        g.fillOval(ex - 2, ey + 1, 6, 7);
-        // 瞳孔
-        g.setColor(new Color(15, 8, 3));
-        g.fillOval(ex - 1, ey + 2, 3, 5);
-
-        // 高光（依眼型有所不同）
-        switch (appearance.eyeStyle) {
-            case BRIGHT -> {
-                // 楓之谷主角：雙重高光（大 + 小）
-                g.setColor(new Color(255, 255, 255, 230));
-                g.fillOval(ex,     ey + 1, 3, 3);  // 上方大光點
-                g.fillOval(ex - 2, ey + 5, 2, 2);  // 下方小光點
-            }
-            case ROUND -> {
-                // 大圓眼：寬大高光
-                g.setColor(new Color(255, 255, 255, 210));
-                g.fillOval(ex, ey + 1, 4, 4);
-            }
-            case SHARP -> {
-                // 銳利眼：單點小高光
-                g.setColor(new Color(255, 255, 255, 180));
-                g.fillOval(ex + 1, ey + 2, 2, 2);
-            }
-        }
-
-        // 眼線（讓眼神更有力）
-        g.setColor(new Color(30, 15, 5));
-        g.setStroke(new BasicStroke(1f));
-        g.drawOval(ex - 4, ey, 9, 9);
-    }
-
-    /**
-     * 眉毛：根據 eyebrowStyle + 當前狀態（正常/受傷/攻擊）改變形狀。
-     * 眉毛顏色取髮色加深版，視覺上自然融合。
-     */
-    private void drawEyebrow(Graphics2D g, int cx, int sy, int ex,
-                              boolean hurt, boolean angry) {
-        int bx = ex;       // 眉毛中心跟著眼睛走
-        int by = sy + 6;   // 眉毛在眼睛（sy+9）上方 3px
-
-        // 眉色 = 髮色加深
-        Color ebColor = new Color(
-            Math.max(0, appearance.hairColor.getRed()   - 10),
-            Math.max(0, appearance.hairColor.getGreen() - 10),
-            Math.max(0, appearance.hairColor.getBlue()  - 10));
-        g.setColor(ebColor);
-
-        switch (appearance.eyebrowStyle) {
-            case THICK -> {
-                // 粗眉：2.5px 筆觸，狀態影響斜度
-                g.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                if (hurt) {
-                    // 下垂八字（悲傷）
-                    if (facingRight) g.drawLine(bx - 4, by + 2, bx + 3, by + 1);
-                    else             g.drawLine(bx - 3, by + 1, bx + 4, by + 2);
-                } else if (angry) {
-                    // 內側下壓（皺眉）
-                    if (facingRight) g.drawLine(bx - 4, by + 2, bx + 3, by - 1);
-                    else             g.drawLine(bx - 3, by - 1, bx + 4, by + 2);
-                } else {
-                    // 正常微上揚
-                    if (facingRight) g.drawLine(bx - 4, by + 1, bx + 3, by - 1);
-                    else             g.drawLine(bx - 3, by - 1, bx + 4, by + 1);
-                }
-            }
-            case ARCHED -> {
-                // 拱形眉：弧形，情緒狀態改為斜線
-                g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                if (hurt || angry) {
-                    if (facingRight) g.drawLine(bx - 4, by + 1, bx + 3, by);
-                    else             g.drawLine(bx - 3, by,     bx + 4, by + 1);
-                } else {
-                    g.drawArc(bx - 5, by - 2, 11, 8, 0, 180);
-                }
-            }
-            case FLAT -> {
-                // 平眉：直線，情緒狀態輕微傾斜
-                g.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                if (angry) {
-                    if (facingRight) g.drawLine(bx - 4, by + 2, bx + 3, by);
-                    else             g.drawLine(bx - 3, by,     bx + 4, by + 2);
-                } else if (hurt) {
-                    if (facingRight) g.drawLine(bx - 4, by + 1, bx + 3, by);
-                    else             g.drawLine(bx - 3, by,     bx + 4, by + 1);
-                } else {
-                    g.drawLine(bx - 4, by, bx + 3, by);
-                }
-            }
-            case THIN -> {
-                // 細眉：1.3px，弧形，情緒狀態改斜線
-                g.setStroke(new BasicStroke(1.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                if (hurt || angry) {
-                    if (facingRight) g.drawLine(bx - 3, by + 1, bx + 3, by);
-                    else             g.drawLine(bx - 3, by,     bx + 3, by + 1);
-                } else {
-                    g.drawArc(bx - 4, by - 1, 9, 6, 0, 180);
-                }
-            }
-        }
-        g.setStroke(new BasicStroke(1f));
-    }
-
-    /** 頭盔：弧形蓋住頭頂 + 兩側護頰（配合 22×24 頭部） */
-    private void drawHelmet(Graphics2D g, int cx, int sy, Color color) {
-        g.setColor(color);
-        g.fillArc(cx - 13, sy - 5, 26, 26, 8, 164);
-        g.setColor(color.darker());
-        g.setStroke(new BasicStroke(1.5f));
-        g.drawArc(cx - 13, sy - 5, 26, 26, 8, 164);
-        // 護頰（高度加長到 14px，覆蓋到下巴位置）
-        g.setColor(color);
-        g.fillRect(cx - 13, sy + 6, 4, 14);
-        g.fillRect(cx + 9,  sy + 6, 4, 14);
-        g.setColor(color.darker());
-        g.drawRect(cx - 13, sy + 6, 4, 14);
-        g.drawRect(cx + 9,  sy + 6, 4, 14);
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
-    /** 披風：背後飄逸三角形 */
-    private void drawCape(Graphics2D g, int cx, int sy, Color color) {
-        int d = facingRight ? -1 : 1;
-        int[] px = {cx + d * 2, cx + d * 22, cx + d * 16};
-        int[] py = {sy + 22,    sy + 28,      sy + 46};
-        g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 215));
-        g.fillPolygon(px, py, 3);
-        g.setColor(color.darker());
-        g.setStroke(new BasicStroke(1f));
-        g.drawPolygon(px, py, 3);
-        g.setStroke(new BasicStroke(2.2f));
-    }
-
     /**
      * 手臂繪製：依 attackComboIndex 選擇動畫類型。
      *   0 = 劈砍（由上往下斜劈）
@@ -968,14 +594,28 @@ public class Player {
     private void drawArms(Graphics2D g, int cx, int sy,
                           Color topColor, Color gloveColor) {
         if (!attacking) {
-            // 普通走路手臂（與腳對向擺動）
             int armSwing = onGround ? (int)(Math.sin(walkAnim + Math.PI) * 8) : 0;
-            g.setColor(topColor);
+            // 黑邊輪廓（楓之谷特色粗線）
+            g.setColor(CharacterSprite.OUTLINE);
+            g.setStroke(new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g.drawLine(cx, sy + 26, cx - 12 - armSwing, sy + 38);
             g.drawLine(cx, sy + 26, cx + 12 + armSwing, sy + 38);
+            // 衣袖填色
+            g.setColor(topColor);
+            g.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.drawLine(cx, sy + 26, cx - 12 - armSwing, sy + 38);
+            g.drawLine(cx, sy + 26, cx + 12 + armSwing, sy + 38);
+            g.setStroke(new BasicStroke(1f));
+            // 手套（黑邊圓球 + 顏色 + 高光）
+            g.setColor(CharacterSprite.OUTLINE);
+            g.fillOval(cx - 17 - armSwing, sy + 34, 10, 10);
+            g.fillOval(cx +  9 + armSwing, sy + 34, 10, 10);
             g.setColor(gloveColor);
-            g.fillOval(cx - 14 - armSwing, sy + 36, 6, 6);
-            g.fillOval(cx + 10 + armSwing, sy + 36, 6, 6);
+            g.fillOval(cx - 16 - armSwing, sy + 35,  8,  8);
+            g.fillOval(cx + 10 + armSwing, sy + 35,  8,  8);
+            g.setColor(new Color(255, 255, 255, 85));
+            g.fillOval(cx - 15 - armSwing, sy + 35,  3,  3);
+            g.fillOval(cx + 11 + armSwing, sy + 35,  3,  3);
             return;
         }
 
@@ -1022,21 +662,35 @@ public class Player {
             backArmEndY  = sy + 36;
         }
 
-        // 後手
+        // 後手（黑邊 + 衣袖）
+        g.setColor(CharacterSprite.OUTLINE);
+        g.setStroke(new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(cx, sy + 26, backArmEndX, backArmEndY);
         g.setColor(topColor);
+        g.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.drawLine(cx, sy + 26, backArmEndX, backArmEndY);
 
-        // 前手（揮擊時橘色）
+        // 前手（揮擊時橘色發光，帶黑邊）
         boolean inStrike = prog >= STRIKE_START && prog <= STRIKE_END;
         Color frontColor = inStrike ? new Color(255, 190, 60) : topColor;
-        g.setColor(frontColor);
+        g.setColor(CharacterSprite.OUTLINE);
+        g.setStroke(new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.drawLine(cx, sy + 26, frontArmEndX, frontArmEndY);
+        g.setColor(frontColor);
+        g.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(cx, sy + 26, frontArmEndX, frontArmEndY);
+        g.setStroke(new BasicStroke(1f));
 
         // 劍（斜劈時垂直偏多）
         drawWeapon(g, frontArmEndX, frontArmEndY, dir, 18, -12);
 
+        // 手套（黑邊圓球 + 高光）
+        g.setColor(CharacterSprite.OUTLINE);
+        g.fillOval(frontArmEndX - 5, frontArmEndY - 5, 10, 10);
         g.setColor(gloveColor);
-        g.fillOval(frontArmEndX - 3, frontArmEndY - 3, 6, 6);
+        g.fillOval(frontArmEndX - 4, frontArmEndY - 4,  8,  8);
+        g.setColor(new Color(255, 255, 255, 85));
+        g.fillOval(frontArmEndX - 3, frontArmEndY - 4,  3,  3);
     }
 
     /**
@@ -1072,22 +726,36 @@ public class Player {
             backArmEndY  = sy + 36;
         }
 
-        // 後手
+        // 後手（黑邊 + 衣袖）
+        g.setColor(CharacterSprite.OUTLINE);
+        g.setStroke(new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(cx, sy + 26, backArmEndX, backArmEndY);
         g.setColor(topColor);
+        g.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.drawLine(cx, sy + 26, backArmEndX, backArmEndY);
 
-        // 前手（揮擊時亮藍白）
+        // 前手（突刺時亮藍白，帶黑邊）
         boolean inStrike = prog >= STRIKE_START && prog <= STRIKE_END;
         Color frontColor = inStrike ? new Color(160, 220, 255) : topColor;
-        g.setColor(frontColor);
+        g.setColor(CharacterSprite.OUTLINE);
+        g.setStroke(new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.drawLine(cx, sy + 26, frontArmEndX, frontArmEndY);
+        g.setColor(frontColor);
+        g.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(cx, sy + 26, frontArmEndX, frontArmEndY);
+        g.setStroke(new BasicStroke(1f));
 
         // 劍（突刺時水平延伸更長）
         int swordExtX = inStrike ? 28 : 18;
         drawWeapon(g, frontArmEndX, frontArmEndY, dir, swordExtX, -2);
 
+        // 手套（黑邊圓球 + 高光）
+        g.setColor(CharacterSprite.OUTLINE);
+        g.fillOval(frontArmEndX - 5, frontArmEndY - 5, 10, 10);
         g.setColor(gloveColor);
-        g.fillOval(frontArmEndX - 3, frontArmEndY - 3, 6, 6);
+        g.fillOval(frontArmEndX - 4, frontArmEndY - 4,  8,  8);
+        g.setColor(new Color(255, 255, 255, 85));
+        g.fillOval(frontArmEndX - 3, frontArmEndY - 4,  3,  3);
     }
 
     /** 在手端繪製武器（填色幾何形狀） */

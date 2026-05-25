@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MapleGame — Chibi Sprite Layer Preview v2</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d0d1a;font-family:'Courier New',monospace;color:#e8e0f8;padding:28px 36px 80px}
+  h1{font-size:20px;letter-spacing:2px;color:#ffd966;text-shadow:0 0 16px #ffd96688;margin-bottom:4px}
+  .sub{font-size:10px;color:#8880aa;margin-bottom:32px;letter-spacing:1px}
+  .sec{font-size:11px;color:#a090d0;letter-spacing:2px;text-transform:uppercase;margin:36px 0 16px;
+       border-bottom:1px solid #3a2a5a;padding-bottom:6px}
+  .row{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end}
+  .panel{display:flex;flex-direction:column;align-items:center;gap:8px}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges;border:1px solid #3a2a5a;border-radius:6px;
+         box-shadow:0 4px 20px #00000099;
+         background-image:linear-gradient(45deg,#1a1230 25%,transparent 25%),
+           linear-gradient(-45deg,#1a1230 25%,transparent 25%),
+           linear-gradient(45deg,transparent 75%,#1a1230 75%),
+           linear-gradient(-45deg,transparent 75%,#1a1230 75%);
+         background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0;background-color:#120e20}
+  .lbl{font-size:10px;color:#ccc0ee;letter-spacing:.5px;text-align:center;line-height:1.5}
+  .lbl .d{color:#60507a;font-size:9px}
+  .badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:8px;letter-spacing:1px;
+         font-weight:bold;margin-bottom:3px}
+  .g{background:#1e2e0e;color:#90c040;border:1px solid #304a10}
+  .p{background:#1e1040;color:#9070d0;border:1px solid #362060}
+  .r{background:#2e1020;color:#d07090;border:1px solid #501830}
+  .b{background:#0e1e30;color:#5090c0;border:1px solid #103050}
+</style>
+</head>
+<body>
+<h1>✦ MapleGame · Chibi Sprite Preview v2 — Organic Pixel Art</h1>
+<div class="sub">64×64 canvas · 6× / 4× display scale · ellipse+bezier curves · 3-step shading · anime eyes</div>
+
+<div class="sec">§1 · Full assembled character — DEFAULT preset (FLUFFY_SPIKE / DEWY_BRIGHT)</div>
+<div class="row">
+  <div class="panel"><span class="badge g">NORMAL · IDLE</span>
+    <canvas id="c0" width="384" height="384"></canvas>
+    <div class="lbl">All 9 layers · facing right<br><span class="d">idle stance</span></div></div>
+  <div class="panel"><span class="badge g">FACING LEFT</span>
+    <canvas id="c1" width="384" height="384"></canvas>
+    <div class="lbl">Horizontal flip<br><span class="d">negative-width drawImage</span></div></div>
+  <div class="panel"><span class="badge g">HURT</span>
+    <canvas id="c2" width="384" height="384"></canvas>
+    <div class="lbl">hurtTimer active<br><span class="d">squint + open mouth + tear</span></div></div>
+  <div class="panel"><span class="badge g">ATTACK</span>
+    <canvas id="c3" width="384" height="384"></canvas>
+    <div class="lbl">attacking = true<br><span class="d">sharp eyes + gritted teeth</span></div></div>
+</div>
+
+<div class="sec">§2 · Isolated layers (4× scale, checkerboard = transparent)</div>
+<div class="row">
+  <div class="panel"><span class="badge p">L1 CAPE BACK</span>
+    <canvas id="l0" width="256" height="256"></canvas><div class="lbl">equipment/cape/</div></div>
+  <div class="panel"><span class="badge p">L2 HAIR BACK</span>
+    <canvas id="l1" width="256" height="256"></canvas><div class="lbl">hair/back/fluffy_spike.png<br><span class="d">greyscale → tinted at runtime</span></div></div>
+  <div class="panel"><span class="badge p">L3 BODY+CLOTHES</span>
+    <canvas id="l2" width="256" height="256"></canvas><div class="lbl">body/ + top/ + bottom/ + boots/</div></div>
+  <div class="panel"><span class="badge p">L4 HEAD SKIN</span>
+    <canvas id="l3" width="256" height="256"></canvas><div class="lbl">body/ivory.png (face region)<br><span class="d">round oval + dough ears + gloss</span></div></div>
+  <div class="panel"><span class="badge b">L5 FACE EXPR</span>
+    <canvas id="l4" width="256" height="256"></canvas><div class="lbl">face/normal/dewy_bright_hero_thick<br><span class="d">DEWY_BRIGHT · HERO_THICK</span></div></div>
+  <div class="panel"><span class="badge p">L6 HAIR FRONT</span>
+    <canvas id="l5" width="256" height="256"></canvas><div class="lbl">hair/front/fluffy_spike.png<br><span class="d">bezier spikes + shading</span></div></div>
+  <div class="panel"><span class="badge p">L7 HELMET</span>
+    <canvas id="l6" width="256" height="256"></canvas><div class="lbl">equipment/helmet/</div></div>
+  <div class="panel"><span class="badge p">L8 EARRING</span>
+    <canvas id="l7" width="256" height="256"></canvas><div class="lbl">equipment/earring/</div></div>
+</div>
+
+<div class="sec">§3 · Hair tint system — one greyscale source → runtime colours</div>
+<div class="row" id="tint_row"></div>
+
+<div class="sec">§4 · All 5 class presets</div>
+<div class="row" id="preset_row"></div>
+
+<div class="sec">§5 · Face expression & eye style close-ups (4× scale)</div>
+<div class="row">
+  <div class="panel"><span class="badge b">DEWY NORMAL</span>
+    <canvas id="f0" width="256" height="256"></canvas><div class="lbl">face/normal/dewy_bright_hero_thick</div></div>
+  <div class="panel"><span class="badge b">DEWY HURT</span>
+    <canvas id="f1" width="256" height="256"></canvas><div class="lbl">face/hurt/</div></div>
+  <div class="panel"><span class="badge b">DEWY ATTACK</span>
+    <canvas id="f2" width="256" height="256"></canvas><div class="lbl">face/attack/</div></div>
+  <div class="panel"><span class="badge b">SHARP_COOL</span>
+    <canvas id="f3" width="256" height="256"></canvas><div class="lbl">face/normal/sharp_cool_cool_flat</div></div>
+  <div class="panel"><span class="badge b">WIDE_ROUND</span>
+    <canvas id="f4" width="256" height="256"></canvas><div class="lbl">face/normal/wide_round_soft_arched</div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// COORDINATE CONSTANTS  (all in 64×64 virtual canvas space)
+// ═══════════════════════════════════════════════════════════════════════
+const CW=64, CH=64, CX=32;
+// Head oval
+const HCX=32, HCY=20, HRX=13, HRY=14;
+const HX=HCX-HRX, HY=HCY-HRY, HW=HRX*2, HH=HRY*2; // 19,6,26,28
+// Eyes (big chibi!)
+const LX=26, RX=38, EY=22;   // eye centers
+const ERX=4.5, ERY=5.5;       // eye radii
+const BROW_Y=15;               // eyebrow y
+// Body
+const NECK_Y=31, TORSO_Y=36, TORSO_H=14, LEG_Y=50, LEG_H=14;
+
+// ═══════════════════════════════════════════════════════════════════════
+// COLOUR HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+const col=arr=>{
+  const[r,g,b,a=255]=arr;
+  return a===255?`rgb(${r},${g},${b})`:`rgba(${r},${g},${b},${+(a/255).toFixed(3)})`;
+};
+const dk=([r,g,b,...x],n)=>[Math.max(0,r-n),Math.max(0,g-n),Math.max(0,b-n),...x];
+const lt=([r,g,b,...x],n)=>[Math.min(255,r+n),Math.min(255,g+n),Math.min(255,b+n),...x];
+const alpha=(arr,a)=>[arr[0],arr[1],arr[2],a];
+
+// ═══════════════════════════════════════════════════════════════════════
+// DRAWING FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════
+
+function drawCapeBack(g){
+  const c=[170,25,25];
+  // shadow outer
+  g.fillStyle=col(dk(c,40)); g.beginPath();
+  g.ellipse(CX,TORSO_Y+13,12,15,0,0,Math.PI*2); g.fill();
+  // main body
+  g.fillStyle=col(c); g.beginPath();
+  g.ellipse(CX,TORSO_Y+11,10,13,0,0,Math.PI*2); g.fill();
+  // inner lighter fold
+  g.fillStyle=col(lt(c,30)); g.beginPath();
+  g.ellipse(CX-1,TORSO_Y+6,5,7,-.15,0,Math.PI*2); g.fill();
+}
+
+function drawHairBack(g,hc,style){
+  const s=dk(hc,28), hi=lt(hc,45);
+  g.fillStyle=col(s);
+  if(style==='PRINCESS_LONG'){
+    g.beginPath(); g.ellipse(HCX,HCY+1,HRX+2,HRY+5,0,0,Math.PI*2); g.fill();
+    g.beginPath();
+    g.moveTo(HX-1,HCY+4);
+    g.quadraticCurveTo(HX-5,HCY+18,HX-2,HCY+26);
+    g.quadraticCurveTo(HX+3,HCY+30,HX+5,HCY+22);
+    g.quadraticCurveTo(HX+3,HCY+12,HX+2,HCY+4);
+    g.closePath(); g.fill();
+    g.beginPath();
+    g.moveTo(HX+HW+1,HCY+4);
+    g.quadraticCurveTo(HX+HW+5,HCY+18,HX+HW+2,HCY+26);
+    g.quadraticCurveTo(HX+HW-3,HCY+30,HX+HW-5,HCY+22);
+    g.quadraticCurveTo(HX+HW-3,HCY+12,HX+HW-2,HCY+4);
+    g.closePath(); g.fill();
+    g.fillStyle=col(hi); g.beginPath();
+    g.ellipse(HX+5,HCY-6,2,6,-.2,0,Math.PI*2); g.fill();
+  } else if(style==='MUSHROOM_BOWL'){
+    g.beginPath(); g.ellipse(HCX,HCY-2,HRX+4,HRY*.6+2,0,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX-2,HCY+7,4,8,0,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW+2,HCY+7,4,8,0,0,Math.PI*2); g.fill();
+  } else {
+    g.beginPath(); g.ellipse(HCX,HCY+2,HRX+1,HRY+4,0,0,Math.PI*2); g.fill();
+  }
+}
+
+function drawBody(g,p){
+  const sc=p.skin, tc=p.top, bc=p.bot, bo=p.boot;
+
+  // ── Torso ──────────────────────────────────────────────────
+  const tcY=TORSO_Y+TORSO_H/2;
+  g.fillStyle=col(tc);
+  g.beginPath(); g.ellipse(CX,tcY,9,TORSO_H/2+1,0,0,Math.PI*2); g.fill();
+  // shadow (lower belly)
+  g.fillStyle=col(alpha(dk(tc,40),110));
+  g.beginPath(); g.ellipse(CX+1,tcY+4,7,TORSO_H*.35,0,0,Math.PI*2); g.fill();
+  // highlight (chest)
+  g.fillStyle=col(alpha(lt(tc,50),90));
+  g.beginPath(); g.ellipse(CX-2,tcY-4,5,TORSO_H*.28,0,0,Math.PI*2); g.fill();
+  // collar skin
+  g.fillStyle=col(sc);
+  g.beginPath(); g.ellipse(CX,NECK_Y+4,4,4,0,0,Math.PI*2); g.fill();
+
+  // ── Belt ──────────────────────────────────────────────────
+  g.fillStyle=col(dk(bc,40));
+  g.beginPath(); g.ellipse(CX,LEG_Y-2,9,3,0,0,Math.PI*2); g.fill();
+  g.fillStyle=col(dk(bc,20));
+  g.beginPath(); g.ellipse(CX,LEG_Y-2,7,2,0,0,Math.PI*2); g.fill();
+
+  // ── Left leg ──────────────────────────────────────────────
+  g.fillStyle=col(bc);
+  g.beginPath(); g.ellipse(CX-4,LEG_Y+7,4,8,0,0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(dk(bc,32),100));
+  g.beginPath(); g.ellipse(CX-3,LEG_Y+9,2.5,6,.1,0,Math.PI*2); g.fill();
+  // Right leg
+  g.fillStyle=col(bc);
+  g.beginPath(); g.ellipse(CX+4,LEG_Y+7,4,8,0,0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(dk(bc,32),100));
+  g.beginPath(); g.ellipse(CX+5,LEG_Y+9,2.5,6,-.1,0,Math.PI*2); g.fill();
+
+  // ── Boots ─────────────────────────────────────────────────
+  g.fillStyle=col(bo);
+  g.beginPath(); g.ellipse(CX-4,LEG_Y+17,5,3.5,.1,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(CX+4,LEG_Y+17,5,3.5,-.1,0,Math.PI*2); g.fill();
+  g.fillStyle=col(lt(bo,35));
+  g.beginPath(); g.ellipse(CX-5.5,LEG_Y+15,2,1.5,0,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(CX+2.5,LEG_Y+15,2,1.5,0,0,Math.PI*2); g.fill();
+
+  // ── Arms ──────────────────────────────────────────────────
+  // Left arm (soft oval)
+  g.fillStyle=col(tc);
+  g.beginPath(); g.ellipse(CX-13,TORSO_Y+7,5,7,.15,0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(dk(tc,35),100));
+  g.beginPath(); g.ellipse(CX-12,TORSO_Y+9,3,5,.1,0,Math.PI*2); g.fill();
+  // Left hand (dough ball)
+  g.fillStyle=col(sc);
+  g.beginPath(); g.arc(CX-13,TORSO_Y+16,5.5,0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(lt(sc,30),160));
+  g.beginPath(); g.arc(CX-15,TORSO_Y+14,2,0,Math.PI*2); g.fill();
+  // Right arm
+  g.fillStyle=col(tc);
+  g.beginPath(); g.ellipse(CX+13,TORSO_Y+7,5,7,-.15,0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(dk(tc,35),100));
+  g.beginPath(); g.ellipse(CX+14,TORSO_Y+9,3,5,-.1,0,Math.PI*2); g.fill();
+  // Right hand
+  g.fillStyle=col(sc);
+  g.beginPath(); g.arc(CX+13,TORSO_Y+16,5.5,0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(lt(sc,30),160));
+  g.beginPath(); g.arc(CX+11,TORSO_Y+14,2,0,Math.PI*2); g.fill();
+}
+
+function drawHeadSkin(g,sc){
+  // Ears (behind head)
+  g.fillStyle=col(dk(sc,14));
+  g.beginPath(); g.ellipse(HCX-HRX-1,HCY+1,3.5,4.5,0,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(HCX+HRX+1,HCY+1,3.5,4.5,0,0,Math.PI*2); g.fill();
+  g.fillStyle=col(dk(sc,30));
+  g.beginPath(); g.ellipse(HCX-HRX-1,HCY+1,1.5,2.5,0,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(HCX+HRX+1,HCY+1,1.5,2.5,0,0,Math.PI*2); g.fill();
+
+  // Main head oval
+  g.fillStyle=col(sc);
+  g.beginPath(); g.ellipse(HCX,HCY,HRX,HRY,0,0,Math.PI*2); g.fill();
+
+  // Chin / lower face shadow
+  g.fillStyle=`rgba(0,0,0,.07)`;
+  g.beginPath(); g.ellipse(HCX,HCY+7,HRX*.75,HRY*.32,0,0,Math.PI*2); g.fill();
+
+  // Baby-fat cheek volume highlights
+  g.fillStyle=col(alpha(lt(sc,22),140));
+  g.beginPath(); g.ellipse(HCX-8,HCY-1,4.5,5.5,-.15,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(HCX+8,HCY-1,4.5,5.5,.15,0,Math.PI*2); g.fill();
+
+  // Top-of-head gloss
+  g.fillStyle=`rgba(255,255,255,.16)`;
+  g.beginPath(); g.ellipse(HCX-2,HCY-8,5,3,-.25,0,Math.PI*2); g.fill();
+}
+
+function drawBlush(g,bc){
+  g.fillStyle=col(bc);
+  g.beginPath(); g.ellipse(HCX-9,HCY+4,5.5,2.5,0,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(HCX+9,HCY+4,5.5,2.5,0,0,Math.PI*2); g.fill();
+}
+
+function drawEye_DEWY(g,ex,ey,ec){
+  const[er,eg,eb]=ec;
+
+  // 1. Sclera — warm white oval, drawn first (no outer ring!)
+  g.fillStyle='#f5f2e8';
+  g.beginPath(); g.ellipse(ex,ey,ERX,ERY,0,0,Math.PI*2); g.fill();
+
+  // 2. Iris 3-layer gradient (radius 2.6 → leaves ~1.9px white sclera visible)
+  g.fillStyle=col(lt([er,eg,eb],42));
+  g.beginPath(); g.arc(ex,ey+.5,2.6,0,Math.PI*2); g.fill();
+  g.fillStyle=col([er,eg,eb]);
+  g.beginPath(); g.arc(ex,ey+.7,2.0,0,Math.PI*2); g.fill();
+  g.fillStyle=col(dk([er,eg,eb],32));
+  g.beginPath(); g.arc(ex,ey+.8,1.4,0,Math.PI*2); g.fill();
+
+  // 3. Pupil
+  g.fillStyle='#03031a';
+  g.beginPath(); g.arc(ex,ey+.8,.9,0,Math.PI*2); g.fill();
+
+  // 4. PRIMARY specular 2×2 — top-right of iris, the "life light" ✦
+  g.fillStyle='#ffffff';
+  g.fillRect(ex+.6,ey-.4,2,2);
+  // 5. Secondary specular 1×1 — bottom-left corner
+  g.fillStyle='rgba(255,255,255,.80)';
+  g.fillRect(ex-2.0,ey+1.4,1,1);
+  // 6. Watery inner-rim gloss at bottom
+  g.fillStyle='rgba(255,255,255,.28)';
+  g.beginPath(); g.ellipse(ex,ey+ERY-.6,ERX-1.6,.65,0,0,Math.PI); g.fill();
+
+  // 7. TOP EYELASH — thick arc stroke (only covers TOP of eye, never touches neighbour eye)
+  g.save();
+  g.strokeStyle='#0b0402'; g.lineCap='round';
+  g.lineWidth=1.9;
+  g.beginPath(); g.arc(ex,ey-.4,ERX+.15,Math.PI+.08,2*Math.PI-.08); g.stroke();
+  g.lineWidth=1.0;
+  g.beginPath(); g.arc(ex,ey-.4,ERX+.6,Math.PI+.25,2*Math.PI-.25); g.stroke();
+  g.restore();
+
+  // 8. Corner lash flutter pixels
+  g.fillStyle='#0b0402';
+  g.fillRect(ex+ERX+.1,ey-3.8,1.6,3.0);   // outer corner right
+  g.fillRect(ex-ERX-1.3,ey-3.2,1.3,2.4);  // outer corner left
+
+  // 9. Thin bottom lash line
+  g.save();
+  g.strokeStyle='rgba(25,10,4,.55)'; g.lineWidth=.55; g.lineCap='round';
+  g.beginPath(); g.arc(ex,ey+.4,ERX-.2,.12,Math.PI-.12); g.stroke();
+  g.restore();
+}
+
+function drawEye_SHARP(g,ex,ey,ec){
+  const[er,eg,eb]=ec;
+  // Narrow almond — vertically compressed
+  g.fillStyle='#0a0000';
+  g.beginPath(); g.ellipse(ex,ey+1,ERX+.5,ERY*.58,0,0,Math.PI*2); g.fill();
+  g.fillStyle='#f0eded';
+  g.beginPath(); g.ellipse(ex,ey+1,ERX-.4,ERY*.48,0,0,Math.PI*2); g.fill();
+  // Red iris
+  g.fillStyle=col(lt([er,eg,eb],25));
+  g.beginPath(); g.arc(ex,ey+1,3,0,Math.PI*2); g.fill();
+  g.fillStyle=col([er,eg,eb]);
+  g.beginPath(); g.arc(ex,ey+1,2.2,0,Math.PI*2); g.fill();
+  // Vertical slit pupil
+  g.fillStyle='#160000';
+  g.beginPath(); g.ellipse(ex,ey+1,.9,1.9,0,0,Math.PI*2); g.fill();
+  // Sharp specular (single 1×2)
+  g.fillStyle='rgba(255,200,200,.9)';
+  g.fillRect(ex+.5,ey-.2,1.5,1.5);
+  // Thick top lash
+  g.fillStyle='#0a0000';
+  g.fillRect(ex-ERX+.5,ey-1,ERX*2-1,1.6);
+  g.fillRect(ex-ERX+1,ey-1.8,ERX*2-2,.8);
+}
+
+function drawEye_WIDE(g,ex,ey,ec){
+  const[er,eg,eb]=ec;
+  const WX=ERX+.5, WY=ERY+.5;
+  g.fillStyle='#0a0804';
+  g.beginPath(); g.ellipse(ex,ey,WX,WY,0,0,Math.PI*2); g.fill();
+  g.fillStyle='#f8f5ee';
+  g.beginPath(); g.ellipse(ex,ey+.6,WX-.8,WY-1,0,0,Math.PI*2); g.fill();
+  // Inner rim
+  g.fillStyle='rgba(255,255,255,.22)';
+  g.beginPath(); g.ellipse(ex,ey+WY-1.2,WX-2,.8,0,0,Math.PI); g.fill();
+  // Green iris 3-layer
+  g.fillStyle=col(lt([er,eg,eb],30));
+  g.beginPath(); g.arc(ex,ey+.5,4,0,Math.PI*2); g.fill();
+  g.fillStyle=col([er,eg,eb]);
+  g.beginPath(); g.arc(ex,ey+.8,3.2,0,Math.PI*2); g.fill();
+  g.fillStyle=col(dk([er,eg,eb],25));
+  g.beginPath(); g.arc(ex,ey+1,2.3,0,Math.PI*2); g.fill();
+  // Pupil
+  g.fillStyle='#040c04';
+  g.beginPath(); g.arc(ex,ey+1,1.5,0,Math.PI*2); g.fill();
+  // 2×2 primary specular
+  g.fillStyle='#ffffff';
+  g.fillRect(ex+.8,ey-.8,2,2);
+  g.fillStyle='rgba(255,255,255,.7)';
+  g.fillRect(ex-1.8,ey+2,1,1);
+  // Top lash
+  g.fillStyle='#0a0804';
+  g.fillRect(ex-WX+.5,ey-WY-.2,WX*2-1,1.4);
+  g.fillRect(ex+WX-.3,ey-3,1.5,2.2);
+  g.fillRect(ex-WX-1.2,ey-3,1.5,2.2);
+}
+
+function drawBrow_HERO(g,ex){
+  g.fillStyle='#251408';
+  g.beginPath(); g.ellipse(ex,BROW_Y,5.5,2,-.18*(ex<CX?-1:1),0,Math.PI*2); g.fill();
+  g.fillStyle=col(alpha(lt([37,20,8],28),180));
+  g.beginPath(); g.ellipse(ex+(ex<CX?.5:-.5),BROW_Y-.6,3.5,1,-.1*(ex<CX?-1:1),0,Math.PI*2); g.fill();
+}
+function drawBrow_SOFT(g,ex){
+  g.fillStyle='#2a1610';
+  g.beginPath(); g.ellipse(ex,BROW_Y+.5,5,1.5,-.3*(ex<CX?-1:1),0,Math.PI*2); g.fill();
+}
+function drawBrow_FLAT(g,ex){
+  g.fillStyle='#1a1010';
+  g.fillRect(ex-5.5,BROW_Y-1,11,2);
+}
+function drawBrow_FAIRY(g,ex){
+  g.fillStyle='#6030a0';
+  g.beginPath(); g.ellipse(ex,BROW_Y+1,4.5,1,-.25*(ex<CX?-1:1),0,Math.PI*2); g.fill();
+}
+
+function drawFace(g,eyeStyle,browStyle,ec,sc,state){
+  // ── Eyebrows ──────────────────────────────────────────────
+  const bfn={HERO_THICK:drawBrow_HERO,SOFT_ARCHED:drawBrow_SOFT,COOL_FLAT:drawBrow_FLAT,FAIRY_THIN:drawBrow_FAIRY};
+  const bf=bfn[browStyle]||drawBrow_HERO;
+  bf(g,LX); bf(g,RX);
+
+  if(state==='hurt'){
+    // Squinted arches
+    g.strokeStyle='#1a0a04'; g.lineWidth=1.6;
+    g.beginPath(); g.arc(LX,EY+1,4.5,Math.PI+.3,-.3); g.stroke();
+    g.beginPath(); g.arc(RX,EY+1,4.5,Math.PI+.3,-.3); g.stroke();
+    // Tear drop
+    g.fillStyle='#88ccff';
+    g.beginPath(); g.ellipse(RX+6,EY+2,2,3.5,0,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(RX+6,EY+6,1,2,0,0,Math.PI*2); g.fill();
+    // Open crying mouth
+    g.fillStyle='#c05030';
+    g.beginPath(); g.ellipse(CX,HCY+9,4,5,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#8a2e1a';
+    g.beginPath(); g.ellipse(CX,HCY+10,3,3.5,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#f0e8e0';
+    g.beginPath(); g.ellipse(CX,HCY+9.5,2.5,2,0,0,Math.PI); g.fill();
+    return;
+  }
+  if(state==='attack'){
+    // Determined sharp brows (overwrite)
+    g.fillStyle='#1a0a02';
+    g.beginPath(); g.ellipse(LX+.5,BROW_Y-1,5.5,2,.4,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(RX-.5,BROW_Y-1,5.5,2,-.4,0,Math.PI*2); g.fill();
+    // Narrow determined eyes
+    g.fillStyle='#0a0000';
+    g.beginPath(); g.ellipse(LX,EY+1,ERX+.4,ERY*.5,0,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(RX,EY+1,ERX+.4,ERY*.5,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#e04000';
+    g.beginPath(); g.arc(LX,EY+1,2.6,0,Math.PI*2); g.fill();
+    g.beginPath(); g.arc(RX,EY+1,2.6,0,Math.PI*2); g.fill();
+    g.fillStyle='#300000';
+    g.beginPath(); g.arc(LX,EY+1,1.4,0,Math.PI*2); g.fill();
+    g.beginPath(); g.arc(RX,EY+1,1.4,0,Math.PI*2); g.fill();
+    g.fillStyle='rgba(255,180,150,.9)';
+    g.fillRect(LX+.6,EY-.2,1.5,1.5); g.fillRect(RX+.6,EY-.2,1.5,1.5);
+    g.fillStyle='#0a0000';
+    g.fillRect(LX-ERX+.5,EY-1.2,ERX*2-1,1.6);
+    g.fillRect(RX-ERX+.5,EY-1.2,ERX*2-1,1.6);
+    // Gritted teeth
+    g.fillStyle='#b84020';
+    g.beginPath(); g.ellipse(CX,HCY+9,5.5,3.5,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#f2eeea';
+    for(let i=0;i<5;i++){g.fillRect(CX-4+i*2,HCY+7,1.2,3);}
+    return;
+  }
+
+  // Normal eyes
+  const efn={DEWY:drawEye_DEWY,SHARP:drawEye_SHARP,WIDE:drawEye_WIDE};
+  const ef=efn[eyeStyle]||drawEye_DEWY;
+  ef(g,LX,EY,ec); ef(g,RX,EY,ec);
+
+  // ── Nose (2 subtle nostrils) ──────────────────────────────
+  g.fillStyle=col(alpha(dk(sc,45),90));
+  g.fillRect(CX-1.8,HCY+5.5,1,1); g.fillRect(CX+.8,HCY+5.5,1,1);
+
+  // ── Mouth (arc smile) ────────────────────────────────────
+  g.strokeStyle=col(dk(sc,60)); g.lineWidth=.8;
+  g.beginPath(); g.arc(CX,HCY+9,3,.05,Math.PI-.05); g.stroke();
+  g.fillStyle=col(dk(sc,45));
+  g.beginPath(); g.arc(CX,HCY+9.5,2,0,Math.PI); g.fill();
+  // Inner lip
+  g.fillStyle=col(lt([220,150,120],20));
+  g.beginPath(); g.arc(CX,HCY+9.8,1.3,0,Math.PI); g.fill();
+}
+
+function drawHairFront(g,hc,style){
+  const base=col(hc), shade=col(dk(hc,28)), hi=col(lt(hc,55)), mid2=col(dk(hc,12));
+  const T=HCY-HRY;  // =6, top of head oval
+
+  if(style==='FLUFFY_SPIKE'){
+    // ── Crown cap (covers top of head oval) ──────────────────────
+    g.fillStyle=mid2;
+    g.beginPath(); g.ellipse(HCX,T+4,HRX+.5,9,0,0,Math.PI*2); g.fill();
+
+    // ── 3 UPWARD SPIKES from crown ───────────────────────────────
+    // Left spike — tips LEFT-upward
+    g.fillStyle=col(dk(hc,6));
+    g.beginPath();
+    g.moveTo(HX+1,T+11);
+    g.quadraticCurveTo(HX-4,T+4,HX-1,T-3);     // left side curves away
+    g.quadraticCurveTo(HX+7,T+3,HX+11,T+11);    // right side tapers in
+    g.closePath(); g.fill();
+    g.fillStyle=col(lt(hc,55));
+    g.beginPath();
+    g.moveTo(HX+3,T+10); g.quadraticCurveTo(HX+1,T+5,HX+2,T);
+    g.quadraticCurveTo(HX+5,T+5,HX+5.5,T+10); g.closePath(); g.fill();
+
+    // Center spike — tallest, straight up
+    g.fillStyle=base;
+    g.beginPath();
+    g.moveTo(CX-5,T+11);
+    g.quadraticCurveTo(CX-2.5,T+1,CX,T-5);
+    g.quadraticCurveTo(CX+2.5,T+1,CX+5,T+11);
+    g.closePath(); g.fill();
+    g.fillStyle=col(lt(hc,60));
+    g.beginPath();
+    g.moveTo(CX-1,T+10); g.quadraticCurveTo(CX-.5,T+2,CX,T-3);
+    g.quadraticCurveTo(CX+.5,T+2,CX+2,T+10); g.closePath(); g.fill();
+
+    // Right spike — tips RIGHT-upward
+    g.fillStyle=col(dk(hc,6));
+    g.beginPath();
+    g.moveTo(HX+HW-11,T+11);
+    g.quadraticCurveTo(HX+HW-7,T+3,HX+HW+1,T-3);
+    g.quadraticCurveTo(HX+HW+4,T+4,HX+HW-1,T+11);
+    g.closePath(); g.fill();
+    g.fillStyle=col(lt(hc,55));
+    g.beginPath();
+    g.moveTo(HX+HW-6,T+10); g.quadraticCurveTo(HX+HW-3,T+5,HX+HW-1,T);
+    g.quadraticCurveTo(HX+HW+1,T+5,HX+HW-.5,T+10); g.closePath(); g.fill();
+
+    // ── FRINGE BANGS — drape DOWN over forehead ──────────────────
+    // Left bang clump (covers left forehead, tip at ~y=19)
+    g.fillStyle=col(dk(hc,4));
+    g.beginPath();
+    g.moveTo(HX,T+10);
+    g.quadraticCurveTo(HX-1,T+13,HX+1,T+19);     // left edge, slight taper
+    g.quadraticCurveTo(HX+6,T+21,HX+9,T+17);      // rounded tip
+    g.quadraticCurveTo(HX+11,T+12,HX+11,T+10);
+    g.closePath(); g.fill();
+    // Bang shadow underside
+    g.fillStyle=col(alpha(dk(hc,40),90));
+    g.beginPath(); g.ellipse(HX+5,T+20,5,1.5,0,0,Math.PI); g.fill();
+
+    // Center bang (shorter, triangle-ish, peeks down between spikes)
+    g.fillStyle=mid2;
+    g.beginPath();
+    g.moveTo(CX-4,T+10); g.quadraticCurveTo(CX,T+16,CX+4,T+10);
+    g.closePath(); g.fill();
+
+    // Right bang clump (mirrors left)
+    g.fillStyle=col(dk(hc,4));
+    g.beginPath();
+    g.moveTo(HX+HW,T+10);
+    g.quadraticCurveTo(HX+HW-11,T+12,HX+HW-9,T+17);
+    g.quadraticCurveTo(HX+HW-6,T+21,HX+HW-1,T+19);
+    g.quadraticCurveTo(HX+HW+1,T+13,HX+HW,T+10);
+    g.closePath(); g.fill();
+    g.fillStyle=col(alpha(dk(hc,40),90));
+    g.beginPath(); g.ellipse(HX+HW-5,T+20,5,1.5,0,0,Math.PI); g.fill();
+
+    // ── Side framing strands — run DOWN along face sides ─────────
+    g.fillStyle=mid2;
+    g.beginPath(); g.ellipse(HX-1,HCY+5,3.5,11,-.06,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW+1,HCY+5,3.5,11,.06,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(hc,38));
+    g.beginPath(); g.ellipse(HX-1.2,HCY,1.5,7,-.04,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW+1.2,HCY,1.5,7,.04,0,Math.PI*2); g.fill();
+
+  } else if(style==='PIXEL_SHORT'){
+    g.fillStyle=mid2;
+    g.beginPath(); g.ellipse(HCX,T+5,HRX,7,0,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+1,HCY+1,3,5,-.1,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW-1,HCY+1,3,5,.1,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(hc,55));
+    g.beginPath(); g.ellipse(HX+7,T+2,3,2.5,0,0,Math.PI*2); g.fill();
+
+  } else if(style==='FEATHER_STRAIGHT'){
+    g.fillStyle=mid2;
+    g.beginPath(); g.ellipse(HCX,T+5,HRX+.5,8,0,0,Math.PI*2); g.fill();
+    // Parting shadow
+    g.fillStyle=shade; g.fillRect(CX-.5,T,1,8);
+    // Feathered sides
+    g.fillStyle=base;
+    g.beginPath(); g.ellipse(HX-.5,HCY+3,4,9,-.12,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW+.5,HCY+3,4,9,.12,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(hc,50));
+    g.beginPath(); g.ellipse(CX-4,T+3,2.5,4,-.2,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(CX+4,T+3,2.5,4,.2,0,Math.PI*2); g.fill();
+
+  } else if(style==='MUSHROOM_BOWL'){
+    g.fillStyle=mid2;
+    g.beginPath(); g.ellipse(HCX,HCY-4,HRX+3,HRY*.58+1,0,0,Math.PI*2); g.fill();
+    // Bowl rim shadow
+    g.fillStyle=shade;
+    g.beginPath(); g.ellipse(HCX,HCY+3.5,HRX+3,3,0,0,Math.PI); g.fill();
+    // Side drapes
+    g.fillStyle=base;
+    g.beginPath(); g.ellipse(HX-2,HCY+8,4,8,-.05,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW+2,HCY+8,4,8,.05,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(hc,50));
+    g.beginPath(); g.ellipse(HX+9,HCY-7,3.5,2.5,-.1,0,Math.PI*2); g.fill();
+
+  } else if(style==='PRINCESS_LONG'){
+    g.fillStyle=mid2;
+    g.beginPath(); g.ellipse(HCX,T+5,HRX+1,8,0,0,Math.PI*2); g.fill();
+    g.fillStyle=base;
+    g.beginPath(); g.ellipse(HX-.5,HCY+9,4.5,17,-.1,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW+.5,HCY+9,4.5,17,.1,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(hc,45));
+    g.beginPath(); g.ellipse(HX+1,HCY+5,1.5,11,-.05,0,Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(HX+HW-1,HCY+5,1.5,11,.05,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(hc,60));
+    g.beginPath(); g.ellipse(HCX,T+2,2,4,0,0,Math.PI*2); g.fill();
+  }
+}
+
+function drawHelmet(g){
+  const hc=[155,152,180];
+  g.fillStyle=col(dk(hc,35));
+  g.beginPath(); g.ellipse(HCX,HCY-5,HRX+3,HRY*.65,0,0,Math.PI*2); g.fill();
+  g.fillStyle=col(hc);
+  g.beginPath(); g.ellipse(HCX,HCY-5.5,HRX+2,HRY*.6-.5,0,0,Math.PI*2); g.fill();
+  // Brim
+  g.fillStyle=col(dk(hc,50));
+  g.beginPath(); g.ellipse(HCX,HCY+3,HRX+3,2.5,0,0,Math.PI); g.fill();
+  // Gloss
+  g.fillStyle=col(lt(hc,55));
+  g.beginPath(); g.ellipse(HCX-5,HCY-11,4,2.5,-.3,0,Math.PI*2); g.fill();
+}
+
+function drawEarrings(g){
+  const gc=[218,175,0];
+  [HCX-HRX-2,HCX+HRX+2].forEach(ex=>{
+    g.fillStyle=col(gc);
+    g.beginPath(); g.arc(ex,HCY+1,3,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(gc,55));
+    g.beginPath(); g.arc(ex-1,HCY,1.3,0,Math.PI*2); g.fill();
+    // Chain
+    g.strokeStyle=col(dk(gc,20)); g.lineWidth=.6;
+    g.beginPath(); g.moveTo(ex,HCY+4); g.lineTo(ex,HCY+6); g.stroke();
+    // Dangle gem
+    g.fillStyle=col(dk(gc,15));
+    g.beginPath(); g.arc(ex,HCY+8,2.2,0,Math.PI*2); g.fill();
+    g.fillStyle=col(lt(gc,40));
+    g.beginPath(); g.arc(ex-1,HCY+7,1,0,Math.PI*2); g.fill();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COMPOSITE RENDER
+// ═══════════════════════════════════════════════════════════════════════
+function drawCharacter(g,p,{cape=false,helmet=false,earrings=false,state='normal',flip=false}={}){
+  g.save();
+  if(flip){g.translate(CW,0);g.scale(-1,1);}
+  if(cape)   drawCapeBack(g);
+  drawHairBack(g,p.hair,p.hairStyle);
+  drawBody(g,p);
+  drawHeadSkin(g,p.skin);
+  drawBlush(g,p.blush);
+  drawFace(g,p.eyeStyle,p.brow,p.eye,p.skin,state);
+  drawHairFront(g,p.hair,p.hairStyle);
+  if(helmet)  drawHelmet(g);
+  if(earrings)drawEarrings(g);
+  g.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PRESET DATA
+// ═══════════════════════════════════════════════════════════════════════
+const PRESETS=[
+  {name:'DEFAULT',   hairStyle:'FLUFFY_SPIKE',  hair:[110,72,28],  eye:[80,160,255], eyeStyle:'DEWY',  brow:'HERO_THICK',  skin:[255,222,178],blush:[255,148,128,72],top:[190,190,210],bot:[130,130,170],boot:[150,110,75]},
+  {name:'WARRIOR',   hairStyle:'PIXEL_SHORT',   hair:[28,18,8],    eye:[200,128,40], eyeStyle:'SHARP', brow:'HERO_THICK',  skin:[248,208,160],blush:[255,120,90,55], top:[200,60,40],  bot:[120,40,30],  boot:[80,60,40]},
+  {name:'MAGE',      hairStyle:'PRINCESS_LONG', hair:[148,72,220], eye:[200,100,255],eyeStyle:'DEWY',  brow:'FAIRY_THIN',  skin:[255,228,192],blush:[220,140,200,80],top:[120,60,200], bot:[80,40,150],  boot:[60,30,120]},
+  {name:'BOWMAN',    hairStyle:'FEATHER_STRAIGHT',hair:[220,178,40],eye:[60,178,88], eyeStyle:'WIDE',  brow:'SOFT_ARCHED', skin:[255,220,175],blush:[255,160,140,65],top:[60,120,60],  bot:[40,90,40],   boot:[60,80,40]},
+  {name:'THIEF',     hairStyle:'MUSHROOM_BOWL', hair:[20,12,8],    eye:[225,55,55],  eyeStyle:'SHARP', brow:'COOL_FLAT',   skin:[248,212,165],blush:[200,80,80,50],  top:[30,30,40],   bot:[20,20,30],   boot:[20,15,20]},
+];
+const DEF=PRESETS[0];
+
+// ═══════════════════════════════════════════════════════════════════════
+// RENDER HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+function ctx64(canvas,scale){
+  const c=canvas.getContext('2d');
+  c.clearRect(0,0,canvas.width,canvas.height);
+  c.imageSmoothingEnabled=false;
+  c.save(); c.scale(scale,scale); return c;
+}
+function render(id,p,opts,scale=6){
+  const c=ctx64(document.getElementById(id),scale);
+  drawCharacter(c,p,opts); c.restore();
+}
+function iso(id,fn,scale=4){
+  const c=ctx64(document.getElementById(id),scale);
+  fn(c); c.restore();
+}
+
+// ── §1 Full character ────────────────────────────────────────────────
+render('c0',DEF,{cape:true,earrings:true});
+render('c1',DEF,{flip:true});
+render('c2',DEF,{state:'hurt'});
+render('c3',DEF,{state:'attack'});
+
+// ── §2 Isolated layers ───────────────────────────────────────────────
+iso('l0',g=>drawCapeBack(g));
+iso('l1',g=>drawHairBack(g,DEF.hair,DEF.hairStyle));
+iso('l2',g=>drawBody(g,DEF));
+iso('l3',g=>{drawHeadSkin(g,DEF.skin);drawBlush(g,DEF.blush);});
+iso('l4',g=>{
+  drawHeadSkin(g,DEF.skin); drawBlush(g,DEF.blush);
+  drawFace(g,DEF.eyeStyle,DEF.brow,DEF.eye,DEF.skin,'normal');
+});
+iso('l5',g=>drawHairFront(g,DEF.hair,DEF.hairStyle));
+iso('l6',g=>drawHelmet(g));
+iso('l7',g=>drawEarrings(g));
+
+// ── §3 Hair tint demo ────────────────────────────────────────────────
+const TINTS=[
+  {label:'SOURCE (greyscale)',c:[200,200,200]},
+  {label:'DEFAULT · brown',c:[110,72,28]},
+  {label:'MAGE · purple',c:[148,72,220]},
+  {label:'BOWMAN · blonde',c:[220,178,40]},
+  {label:'THIEF · near-black',c:[20,12,8]},
+  {label:'WARRIOR · dark brown',c:[28,18,8]},
+];
+const tRow=document.getElementById('tint_row');
+TINTS.forEach(t=>{
+  const wrap=document.createElement('div'); wrap.className='panel';
+  const badge=document.createElement('span'); badge.className='badge r'; badge.textContent=t.label.split('·')[0].trim();
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; cv.style.imageRendering='pixelated';
+  cv.style.cssText+=';border:1px solid #3a2a5a;border-radius:6px;box-shadow:0 4px 20px #00000099;background-image:linear-gradient(45deg,#1a1230 25%,transparent 25%),linear-gradient(-45deg,#1a1230 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1a1230 75%),linear-gradient(-45deg,transparent 75%,#1a1230 75%);background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0;background-color:#120e20';
+  const lbl=document.createElement('div'); lbl.className='lbl';
+  lbl.innerHTML=t.label+'<br><span class="d">AlphaComposite.SRC_ATOP @ 0.68f</span>';
+  const c=ctx64(cv,4);
+  drawHairBack(c,t.c,'FLUFFY_SPIKE');
+  drawHeadSkin(c,[255,222,178]);
+  drawHairFront(c,t.c,'FLUFFY_SPIKE');
+  c.restore();
+  wrap.append(badge,cv,lbl); tRow.append(wrap);
+});
+
+// ── §4 All 5 presets ────────────────────────────────────────────────
+const pRow=document.getElementById('preset_row');
+PRESETS.forEach(p=>{
+  const wrap=document.createElement('div'); wrap.className='panel';
+  const badge=document.createElement('span'); badge.className='badge g'; badge.textContent=p.name;
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; cv.style.imageRendering='pixelated';
+  cv.style.cssText+=';border:1px solid #3a2a5a;border-radius:6px;box-shadow:0 4px 20px #00000099;background-image:linear-gradient(45deg,#1a1230 25%,transparent 25%),linear-gradient(-45deg,#1a1230 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1a1230 75%),linear-gradient(-45deg,transparent 75%,#1a1230 75%);background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0;background-color:#120e20';
+  const lbl=document.createElement('div'); lbl.className='lbl';
+  lbl.innerHTML=p.hairStyle+'<br><span class="d">'+p.eyeStyle+'_'+p.brow+'</span>';
+  const c=ctx64(cv,4);
+  drawCharacter(c,p,{}); c.restore();
+  wrap.append(badge,cv,lbl); pRow.append(wrap);
+});
+
+// ── §5 Face close-ups ───────────────────────────────────────────────
+iso('f0',g=>{drawHeadSkin(g,DEF.skin);drawBlush(g,DEF.blush);drawFace(g,'DEWY','HERO_THICK',DEF.eye,DEF.skin,'normal');});
+iso('f1',g=>{drawHeadSkin(g,DEF.skin);drawBlush(g,DEF.blush);drawFace(g,'DEWY','HERO_THICK',DEF.eye,DEF.skin,'hurt');});
+iso('f2',g=>{drawHeadSkin(g,DEF.skin);drawBlush(g,DEF.blush);drawFace(g,'DEWY','HERO_THICK',DEF.eye,DEF.skin,'attack');});
+iso('f3',g=>{const p=PRESETS[4];drawHeadSkin(g,p.skin);drawBlush(g,p.blush);drawFace(g,'SHARP','COOL_FLAT',p.eye,p.skin,'normal');});
+iso('f4',g=>{const p=PRESETS[3];drawHeadSkin(g,p.skin);drawBlush(g,p.blush);drawFace(g,'WIDE','SOFT_ARCHED',p.eye,p.skin,'normal');});
+</script>
+</body>
+</html>
